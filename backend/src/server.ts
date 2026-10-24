@@ -1,13 +1,14 @@
 import app from './app'
+import { env } from './config/env'
 import http from 'http'
-
-const PORT = Number(process.env.PORT) || 5000
 
 const server = http.createServer(app)
 
-server.listen(PORT, () => {
-  console.log(`[server] KothaKoi backend running on http://localhost:${PORT}`)
-  console.log(`[server] Environment: ${process.env.NODE_ENV ?? 'development'}`)
+server.listen(env.PORT, () => {
+  console.log(
+    `[server] KothaKoi backend running on http://localhost:${env.PORT}`
+  )
+  console.log(`[server] Environment: ${env.NODE_ENV}`)
 })
 
 export default server

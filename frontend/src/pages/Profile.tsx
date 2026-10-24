@@ -4,10 +4,11 @@
  * verification status, sample placeholder statistics, and account settings.
  */
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../context'
 
 export default function Profile() {
-  const navigate = useNavigate()
+  const { logout } = useAuth()
 
   // Sample Demo Student Profile Data (clearly labeled demo data, not a real person)
   const [realName] = useState('Tanvir Ahmed (Demo Student)')
@@ -32,10 +33,8 @@ export default function Profile() {
     setTimeout(() => setSavedSettingsNotice(''), 3000)
   }
 
-  function handleLogout() {
-    if (window.confirm('Log out and return to the KothaKoi login screen?')) {
-      navigate('/login')
-    }
+  async function handleLogout() {
+    await logout()
   }
 
   return (
@@ -48,7 +47,9 @@ export default function Profile() {
             <span className="font-headline-md text-xl sm:text-2xl font-bold tracking-tight text-on-surface">
               KothaKoi
             </span>
-            <span className="font-headline-md text-xl sm:text-2xl font-bold text-primary">.</span>
+            <span className="font-headline-md text-xl sm:text-2xl font-bold text-primary">
+              .
+            </span>
             <span className="hidden sm:inline-block font-label-sm text-[11px] px-1.5 py-0.5 rounded bg-secondary-container text-on-secondary-container border border-on-surface ml-1">
               কথা কই
             </span>
@@ -71,14 +72,18 @@ export default function Profile() {
               className="px-3 py-1 bg-primary-container text-on-surface font-label-sm text-xs font-bold rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] hover:bg-[#ff8638] transition-all flex items-center gap-1"
             >
               <span>Start Adda</span>
-              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              <span className="material-symbols-outlined text-[14px]">
+                arrow_forward
+              </span>
             </Link>
             <button
               onClick={handleLogout}
               className="px-2.5 py-1 bg-surface-container text-error hover:bg-error-container font-label-sm text-xs font-bold rounded-lg border-2 border-on-surface shadow-[1px_1px_0px_#1c1b1b] transition-all flex items-center gap-1"
               title="Log out"
             >
-              <span className="material-symbols-outlined text-[14px]">logout</span>
+              <span className="material-symbols-outlined text-[14px]">
+                logout
+              </span>
               <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
@@ -87,7 +92,6 @@ export default function Profile() {
 
       {/* ── Main Profile Content ────────────────────────────────── */}
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6">
-        
         {/* Prototype Sample Data Notice */}
         <div className="p-3 bg-[#FFF5E6] rounded-2xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] flex items-start gap-2.5">
           <span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">
@@ -98,7 +102,9 @@ export default function Profile() {
               Prototype Demonstration: Sample Student Profile
             </span>
             <p className="font-body-sm text-xs text-on-surface-variant leading-snug">
-              All personal details, student ID, and statistics shown below are fictional sample data for UI evaluation. No real person's private information is collected or displayed.
+              All personal details, student ID, and statistics shown below are
+              fictional sample data for UI evaluation. No real person's private
+              information is collected or displayed.
             </p>
           </div>
         </div>
@@ -107,14 +113,18 @@ export default function Profile() {
         <div className="p-3.5 bg-surface-container-lowest rounded-2xl border-2 border-on-surface shadow-[4px_4px_0px_#1c1b1b] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-secondary-container border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-primary text-[22px]">security</span>
+              <span className="material-symbols-outlined text-primary text-[22px]">
+                security
+              </span>
             </div>
             <div>
               <h2 className="font-headline-md text-base sm:text-lg font-bold text-on-surface">
                 Strict Real-Name Privacy Active
               </h2>
               <p className="font-body-sm text-xs text-on-surface-variant">
-                Your real name, student ID, and email below are strictly private account records and <strong>NEVER</strong> appear in the chat UI.
+                Your real name, student ID, and email below are strictly private
+                account records and <strong>NEVER</strong> appear in the chat
+                UI.
               </p>
             </div>
           </div>
@@ -142,7 +152,9 @@ export default function Profile() {
                 TA
               </div>
               <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-secondary-container border border-on-surface flex items-center justify-center shadow-[1px_1px_0px_#1c1b1b]">
-                <span className="material-symbols-outlined text-[14px]">lock</span>
+                <span className="material-symbols-outlined text-[14px]">
+                  lock
+                </span>
               </div>
             </div>
 
@@ -156,12 +168,18 @@ export default function Profile() {
                 </span>
               </div>
               <p className="font-label-sm text-xs sm:text-sm text-primary font-bold mt-0.5">
-                Student ID: <span className="font-mono text-on-surface">{studentId}</span> • {department}
+                Student ID:{' '}
+                <span className="font-mono text-on-surface">{studentId}</span> •{' '}
+                {department}
               </p>
               <p className="font-body-sm text-xs text-on-surface-variant mt-0.5 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px] text-outline">mail</span>
+                <span className="material-symbols-outlined text-[14px] text-outline">
+                  mail
+                </span>
                 <span className="font-mono">{email}</span>
-                <span className="text-[10px] text-emerald-700 font-bold ml-1">(UIU Institutional Webmail)</span>
+                <span className="text-[10px] text-emerald-700 font-bold ml-1">
+                  (UIU Institutional Webmail)
+                </span>
               </p>
             </div>
           </div>
@@ -169,16 +187,28 @@ export default function Profile() {
           {/* Institutional metadata grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-on-surface/20">
             <div className="p-2.5 bg-surface-container rounded-xl border border-on-surface/40">
-              <span className="font-label-sm text-[10px] uppercase text-outline block">Campus Location</span>
-              <span className="font-headline-md text-xs sm:text-sm font-bold text-on-surface">Madani Avenue, Dhaka</span>
+              <span className="font-label-sm text-[10px] uppercase text-outline block">
+                Campus Location
+              </span>
+              <span className="font-headline-md text-xs sm:text-sm font-bold text-on-surface">
+                Madani Avenue, Dhaka
+              </span>
             </div>
             <div className="p-2.5 bg-surface-container rounded-xl border border-on-surface/40">
-              <span className="font-label-sm text-[10px] uppercase text-outline block">Student ID Number</span>
-              <span className="font-headline-md text-xs sm:text-sm font-bold text-on-surface font-mono">{studentId}</span>
+              <span className="font-label-sm text-[10px] uppercase text-outline block">
+                Student ID Number
+              </span>
+              <span className="font-headline-md text-xs sm:text-sm font-bold text-on-surface font-mono">
+                {studentId}
+              </span>
             </div>
             <div className="p-2.5 bg-surface-container rounded-xl border border-on-surface/40">
-              <span className="font-label-sm text-[10px] uppercase text-outline block">Verification Status</span>
-              <span className="font-headline-md text-xs sm:text-sm font-bold text-emerald-700">Mock UI Verified ✓</span>
+              <span className="font-label-sm text-[10px] uppercase text-outline block">
+                Verification Status
+              </span>
+              <span className="font-headline-md text-xs sm:text-sm font-bold text-emerald-700">
+                Mock UI Verified ✓
+              </span>
             </div>
           </div>
         </div>
@@ -191,10 +221,14 @@ export default function Profile() {
               <h2 className="font-headline-md text-lg font-bold text-on-surface">
                 Campus Adda Statistics
               </h2>
-              <span className="material-symbols-outlined text-primary text-[18px]">query_stats</span>
+              <span className="material-symbols-outlined text-primary text-[18px]">
+                query_stats
+              </span>
             </div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#FFF5E6] border border-on-surface/60 rounded-md font-label-sm text-[11px] text-primary font-bold">
-              <span className="material-symbols-outlined text-[14px]">info</span>
+              <span className="material-symbols-outlined text-[14px]">
+                info
+              </span>
               <span>Sample Demo Data — Real tracking not implemented yet</span>
             </div>
           </div>
@@ -204,9 +238,13 @@ export default function Profile() {
             {/* Stat 1: Total Chatting Hours */}
             <div className="bg-surface-container-lowest p-4 rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-label-sm text-xs font-bold text-on-surface-variant">Total Adda Time</span>
+                <span className="font-label-sm text-xs font-bold text-on-surface-variant">
+                  Total Adda Time
+                </span>
                 <div className="w-7 h-7 rounded-lg bg-primary-fixed border border-on-surface flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-[16px]">schedule</span>
+                  <span className="material-symbols-outlined text-primary text-[16px]">
+                    schedule
+                  </span>
                 </div>
               </div>
               <div>
@@ -222,9 +260,13 @@ export default function Profile() {
             {/* Stat 2: Number of People Met */}
             <div className="bg-surface-container-lowest p-4 rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-label-sm text-xs font-bold text-on-surface-variant">Peers Met</span>
+                <span className="font-label-sm text-xs font-bold text-on-surface-variant">
+                  Peers Met
+                </span>
                 <div className="w-7 h-7 rounded-lg bg-secondary-container border border-on-surface flex items-center justify-center">
-                  <span className="material-symbols-outlined text-on-surface text-[16px]">groups</span>
+                  <span className="material-symbols-outlined text-on-surface text-[16px]">
+                    groups
+                  </span>
                 </div>
               </div>
               <div>
@@ -240,7 +282,9 @@ export default function Profile() {
             {/* Stat 3: Cha Cups Shared */}
             <div className="bg-surface-container-lowest p-4 rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-label-sm text-xs font-bold text-on-surface-variant">Tong Cha Score</span>
+                <span className="font-label-sm text-xs font-bold text-on-surface-variant">
+                  Tong Cha Score
+                </span>
                 <div className="w-7 h-7 rounded-lg bg-primary-fixed border border-on-surface flex items-center justify-center">
                   <span className="text-[14px]">☕</span>
                 </div>
@@ -258,9 +302,13 @@ export default function Profile() {
             {/* Stat 4: Karma & Safety */}
             <div className="bg-surface-container-lowest p-4 rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-label-sm text-xs font-bold text-on-surface-variant">Account Health</span>
+                <span className="font-label-sm text-xs font-bold text-on-surface-variant">
+                  Account Health
+                </span>
                 <div className="w-7 h-7 rounded-lg bg-emerald-100 border border-on-surface flex items-center justify-center">
-                  <span className="material-symbols-outlined text-emerald-700 text-[16px]">verified</span>
+                  <span className="material-symbols-outlined text-emerald-700 text-[16px]">
+                    verified
+                  </span>
                 </div>
               </div>
               <div>
@@ -319,7 +367,8 @@ export default function Profile() {
                   Start with camera off
                 </span>
                 <span className="font-body-sm text-xs text-on-surface-variant">
-                  Begin each video session with your webcam disabled until you turn it on
+                  Begin each video session with your webcam disabled until you
+                  turn it on
                 </span>
               </div>
               <input
@@ -337,7 +386,8 @@ export default function Profile() {
                   Start with microphone muted
                 </span>
                 <span className="font-body-sm text-xs text-on-surface-variant">
-                  Keep mic muted when joining to prevent accidental background noise
+                  Keep mic muted when joining to prevent accidental background
+                  noise
                 </span>
               </div>
               <input
@@ -355,7 +405,8 @@ export default function Profile() {
                   Avoid same-day rematches
                 </span>
                 <span className="font-body-sm text-xs text-on-surface-variant">
-                  Prioritize meeting new UIU students rather than someone you met today
+                  Prioritize meeting new UIU students rather than someone you
+                  met today
                 </span>
               </div>
               <input
@@ -410,12 +461,13 @@ export default function Profile() {
               onClick={handleLogout}
               className="px-4 py-2 bg-surface-container-lowest text-error hover:bg-error-container font-headline-md text-xs sm:text-sm font-bold uppercase rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-1.5"
             >
-              <span className="material-symbols-outlined text-[16px]">logout</span>
+              <span className="material-symbols-outlined text-[16px]">
+                logout
+              </span>
               <span>Log Out</span>
             </button>
           </div>
         </div>
-
       </main>
 
       {/* ── Mock Password Change Dialog ─────────────────────────── */}
@@ -426,11 +478,15 @@ export default function Profile() {
               onClick={() => setShowPasswordModal(false)}
               className="absolute top-4 right-4 text-on-surface hover:text-error"
             >
-              <span className="material-symbols-outlined text-[20px]">close</span>
+              <span className="material-symbols-outlined text-[20px]">
+                close
+              </span>
             </button>
 
             <h3 className="font-headline-md text-lg font-bold text-on-surface mb-3 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[20px]">password</span>
+              <span className="material-symbols-outlined text-primary text-[20px]">
+                password
+              </span>
               Change Account Password
             </h3>
 

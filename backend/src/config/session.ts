@@ -1,21 +1,53 @@
-import session from 'express-session'
+import crypto from 'crypto'
+import { CookieOptions } from 'express'
+import { env } from './env'
 
-// SESSION_SECRET must be set in .env – never hardcode this value.
-const secret = process.env.SESSION_SECRET
-if (!secret) {
-  throw new Error(
-    'Missing SESSION_SECRET environment variable. Set it in your .env file.',
-  )
+/**
+ * Canonical session cookie name as defined in TRD §5, CONTRACTS.md §2, and BACKEND-SCHEMA.md §3.4.
+ */
+export const SESSION_COOKIE_NAME = 'kothakoi_session'
+
+/**
+ * 24-hour session lifetime (in milliseconds).
+ */
+export const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Hashes a plaintext session token using SHA-256 before database storage or lookup.
+ * Plaintext tokens are NEVER persisted in PostgreSQL.
+ */
+export function hashSessionToken(rawToken: string): string {
+  return crypto.createHash('sha256').update(rawToken).digest('hex')
 }
 
-export const sessionMiddleware = session({
-  secret,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,                                          // not accessible via JS
-    secure: process.env.NODE_ENV === 'production',           // HTTPS only in prod
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    maxAge: 1000 * 60 * 60 * 24, // 24 hours
-  },
-})
+/**
+ * Cookie options for setting authenticated session cookies.
+ * Enforces HttpOnly, SameSite=Lax, Path=/, and conditional Secure flag based on NODE_ENV.
+ */
+export function getSessionCookieOptions(
+  overrides?: Partial<CookieOptions>
+): CookieOptions {
+  return {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: SESSION_MAX_AGE_MS,
+    path: '/',
+    ...overrides,
+  }
+}
+
+/**
+ * Cookie options for clearing / revoking session cookies on logout.
+ */
+export function getClearCookieOptions(
+  overrides?: Partial<CookieOptions>
+): CookieOptions {
+  return {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    ...overrides,
+  }
+}

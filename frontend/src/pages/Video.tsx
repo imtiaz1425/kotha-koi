@@ -52,7 +52,10 @@ const MOCK_PARTNER_REPLIES = [
 ]
 
 function nowTime() {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -112,11 +115,11 @@ export default function Video() {
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   function toggleMic() {
-    setIsMuted(prev => !prev)
+    setIsMuted((prev) => !prev)
   }
 
   function toggleCam() {
-    setIsCamOff(prev => !prev)
+    setIsCamOff((prev) => !prev)
   }
 
   function toggleFullscreen() {
@@ -138,7 +141,7 @@ export default function Video() {
       time: '',
       text: 'Connecting to a new campus peer...',
     }
-    setMessages(prev => [...prev, notice])
+    setMessages((prev) => [...prev, notice])
     setTimeout(() => {
       window.location.reload()
     }, 800)
@@ -162,12 +165,13 @@ export default function Video() {
       time: nowTime(),
       text,
     }
-    setMessages(prev => [...prev, userMsg])
+    setMessages((prev) => [...prev, userMsg])
     setChatInput('')
 
     // Simulate partner response
     setTimeout(() => {
-      const reply = MOCK_PARTNER_REPLIES[replyIdxRef.current % MOCK_PARTNER_REPLIES.length]
+      const reply =
+        MOCK_PARTNER_REPLIES[replyIdxRef.current % MOCK_PARTNER_REPLIES.length]
       replyIdxRef.current++
       const partnerMsg: VideoChatMessage = {
         id: nextIdRef.current++,
@@ -176,7 +180,7 @@ export default function Video() {
         time: nowTime(),
         text: reply,
       }
-      setMessages(prev => [...prev, partnerMsg])
+      setMessages((prev) => [...prev, partnerMsg])
     }, 1200)
   }
 
@@ -188,14 +192,21 @@ export default function Video() {
 
   return (
     <div className="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between">
-
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#FFF5E6] border-b-2 border-on-surface shadow-[0_2px_0px_#1c1b1b]">
         <div className="h-16 max-w-7xl mx-auto px-margin lg:px-margin-desktop flex items-center justify-between gap-gutter">
           <div className="flex items-center gap-space-sm">
-            <Link to="/" className="flex items-center gap-space-xs select-none" data-path="chat-lobby">
-              <span className="font-headline-md text-headline-md font-bold tracking-tight text-on-surface">KothaKoi</span>
-              <span className="font-headline-md text-headline-md font-bold text-primary">.</span>
+            <Link
+              to="/"
+              className="flex items-center gap-space-xs select-none"
+              data-path="chat-lobby"
+            >
+              <span className="font-headline-md text-headline-md font-bold tracking-tight text-on-surface">
+                KothaKoi
+              </span>
+              <span className="font-headline-md text-headline-md font-bold text-primary">
+                .
+              </span>
               <span className="hidden sm:inline-block font-label-sm text-label-sm px-space-xs py-0.5 rounded bg-secondary-container text-on-secondary-container border border-on-surface ml-1">
                 কথা কই
               </span>
@@ -239,7 +250,9 @@ export default function Video() {
               </a>
             </nav>
             <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center border border-on-surface shadow-[1px_1px_0px_#1c1b1b] shrink-0">
-              <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
+              <span className="material-symbols-outlined text-on-primary text-[18px]">
+                person
+              </span>
             </div>
           </div>
         </div>
@@ -249,12 +262,13 @@ export default function Video() {
       <main className="w-full pt-16 bg-surface min-h-[calc(100vh-80px)] flex-1 flex flex-col">
         <div className="flex flex-col w-full flex-1">
           <div className="w-full max-w-7xl mx-auto px-margin lg:px-margin-desktop py-space-sm pb-space-lg flex flex-col gap-space-sm flex-1">
-
             {/* ── Top Utility Bar: Matching Context & Verified Campus ─────── */}
             <div className="flex items-center justify-between gap-space-sm bg-surface-container px-space-md py-space-xs rounded-xl shadow-[3px_3px_0px_#1c1b1b] border-2 border-on-surface">
               <div className="flex items-center gap-space-sm flex-wrap">
                 <span className="inline-flex items-center gap-1.5 px-space-xs py-0.5 bg-secondary-container text-on-secondary-container font-label-sm text-label-sm rounded border border-on-surface">
-                  <span className="material-symbols-outlined text-[14px]">local_cafe</span>
+                  <span className="material-symbols-outlined text-[14px]">
+                    local_cafe
+                  </span>
                   Adda Mode: Chai &amp; Code
                 </span>
                 <span className="hidden sm:inline-flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
@@ -269,7 +283,7 @@ export default function Video() {
                 <button
                   id="toggle-audio-fx"
                   title="Toggle audio SFX"
-                  onClick={() => setIsAudioFxOn(prev => !prev)}
+                  onClick={() => setIsAudioFxOn((prev) => !prev)}
                   className="p-1 rounded hover:bg-surface-variant text-on-surface transition-colors"
                 >
                   <span className="material-symbols-outlined text-[18px]">
@@ -281,10 +295,8 @@ export default function Video() {
 
             {/* ── Main Workspace: Video Matrix (Left 65%) + Side Chat (Right 35%) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-md w-full items-start">
-
               {/* ── Video Frame Section (Col 8) ────────────────────────────── */}
               <div className="lg:col-span-8 flex flex-col gap-space-sm">
-
                 {/* Video Canvas Box (with PiP Self View) */}
                 <div
                   ref={videoBoxRef}
@@ -299,10 +311,23 @@ export default function Video() {
                   {/* Video Layer / Simulated Live Feed */}
                   <div className="absolute inset-0 bg-gradient-to-b from-[#222327] to-[#121316] flex flex-col items-center justify-center p-space-md overflow-hidden">
                     {/* Retro Scanline / Grid Background Pattern */}
-                    <svg className="absolute inset-0 w-full h-full opacity-10 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                    <svg
+                      className="absolute inset-0 w-full h-full opacity-10 pointer-events-none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
                       <defs>
-                        <pattern height="24" id="videoGrid" patternUnits="userSpaceOnUse" width="24">
-                          <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#FFFFFF" strokeWidth="0.5" />
+                        <pattern
+                          height="24"
+                          id="videoGrid"
+                          patternUnits="userSpaceOnUse"
+                          width="24"
+                        >
+                          <path
+                            d="M 24 0 L 0 0 0 24"
+                            fill="none"
+                            stroke="#FFFFFF"
+                            strokeWidth="0.5"
+                          />
                         </pattern>
                       </defs>
                       <rect fill="url(#videoGrid)" height="100%" width="100%" />
@@ -331,7 +356,9 @@ export default function Video() {
                         <span className="w-1 h-3 bg-secondary-container rounded-full animate-pulse" />
                         <span className="w-1 h-5 bg-primary-container rounded-full animate-bounce [animation-delay:150ms]" />
                         <span className="w-1 h-2 bg-primary-container rounded-full animate-pulse" />
-                        <span className="font-label-sm text-label-sm text-surface-bright ml-1">Speaking...</span>
+                        <span className="font-label-sm text-label-sm text-surface-bright ml-1">
+                          Speaking...
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -349,7 +376,9 @@ export default function Video() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="px-space-xs py-1 bg-on-surface/90 text-surface-bright font-label-sm text-label-sm rounded border border-surface-variant/20 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-primary-container text-[14px]">lock</span>
+                        <span className="material-symbols-outlined text-primary-container text-[14px]">
+                          lock
+                        </span>
                         P2P
                       </div>
                       <button
@@ -368,7 +397,9 @@ export default function Video() {
                   {/* Video Bottom-Left Overlay: Latency & Encryption Status */}
                   <div className="absolute bottom-3 left-3 z-30 pointer-events-none">
                     <div className="inline-flex items-center gap-2 px-space-xs py-0.5 bg-surface-container-lowest/90 backdrop-blur-sm border border-on-surface rounded shadow-[1px_1px_0px_#1c1b1b]">
-                      <span className="material-symbols-outlined text-[13px] text-emerald-600">wifi</span>
+                      <span className="material-symbols-outlined text-[13px] text-emerald-600">
+                        wifi
+                      </span>
                       <span className="font-label-sm text-label-sm text-on-surface font-semibold tracking-tight">
                         32ms • WebRTC Peer
                       </span>
@@ -392,8 +423,12 @@ export default function Video() {
                         id="self-cam-disabled-overlay"
                         className={`absolute inset-0 bg-[#232326] ${isCamOff ? 'flex' : 'hidden'} flex-col items-center justify-center text-on-primary`}
                       >
-                        <span className="material-symbols-outlined text-[24px]">videocam_off</span>
-                        <span className="font-label-sm text-label-sm mt-1">Camera Off</span>
+                        <span className="material-symbols-outlined text-[24px]">
+                          videocam_off
+                        </span>
+                        <span className="font-label-sm text-label-sm mt-1">
+                          Camera Off
+                        </span>
                       </div>
                     </div>
 
@@ -405,10 +440,12 @@ export default function Video() {
                       <button
                         id="btn-pip-flip"
                         title="Flip camera mirror"
-                        onClick={() => setIsMirrored(prev => !prev)}
+                        onClick={() => setIsMirrored((prev) => !prev)}
                         className="p-0.5 rounded bg-surface-container-lowest/80 text-on-surface hover:bg-surface-container-lowest transition-colors border border-on-surface/50"
                       >
-                        <span className="material-symbols-outlined text-[12px] block">flip_camera_ios</span>
+                        <span className="material-symbols-outlined text-[12px] block">
+                          flip_camera_ios
+                        </span>
                       </button>
                     </div>
 
@@ -482,7 +519,9 @@ export default function Video() {
                       onClick={handleEndCall}
                       className="px-space-sm py-2.5 rounded-lg bg-surface-container-lowest text-error border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] font-label-md text-label-md font-bold flex items-center gap-1.5 hover:bg-error-container active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_#1c1b1b] transition-all"
                     >
-                      <span className="material-symbols-outlined text-[18px]">call_end</span>
+                      <span className="material-symbols-outlined text-[18px]">
+                        call_end
+                      </span>
                       <span className="hidden md:inline">End</span>
                     </button>
                   </div>
@@ -494,7 +533,9 @@ export default function Video() {
                       onClick={() => setReportModalOpen(true)}
                       className="px-space-sm py-2 rounded-lg bg-surface-container-lowest border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] text-on-surface-variant hover:text-error hover:bg-error-container/40 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_#1c1b1b] font-label-md text-label-md font-bold flex items-center gap-1.5 transition-all"
                     >
-                      <span className="material-symbols-outlined text-[18px] text-error">flag</span>
+                      <span className="material-symbols-outlined text-[18px] text-error">
+                        flag
+                      </span>
                       <span className="text-xs">Report</span>
                     </button>
                   </div>
@@ -507,8 +548,12 @@ export default function Video() {
                   {/* Side Chat Header */}
                   <div className="p-space-sm border-b-2 border-on-surface bg-surface-container flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-[20px]">chat_bubble</span>
-                      <h2 className="font-headline-md text-[16px] leading-tight font-bold text-on-surface">Live Chat</h2>
+                      <span className="material-symbols-outlined text-primary text-[20px]">
+                        chat_bubble
+                      </span>
+                      <h2 className="font-headline-md text-[16px] leading-tight font-bold text-on-surface">
+                        Live Chat
+                      </h2>
                     </div>
                     <span className="font-label-sm text-label-sm px-2 py-0.5 bg-surface-container-lowest rounded border border-on-surface text-on-surface-variant">
                       End-to-End
@@ -524,15 +569,22 @@ export default function Video() {
                     {/* Connection System Notice */}
                     <div className="flex justify-center my-1">
                       <div className="px-space-sm py-1 bg-[#ebe3d5] border border-on-surface rounded font-label-sm text-label-sm text-on-surface text-center shadow-[1px_1px_0px_#1c1b1b]">
-                        ✨ Connected with <span className="font-bold text-primary">Pixel Panda 🐼</span>. Say Salam!
+                        ✨ Connected with{' '}
+                        <span className="font-bold text-primary">
+                          Pixel Panda 🐼
+                        </span>
+                        . Say Salam!
                       </div>
                     </div>
 
                     {/* Messages Loop */}
-                    {messages.map(msg => {
+                    {messages.map((msg) => {
                       if (msg.sender === 'notice') {
                         return (
-                          <div key={msg.id} className="flex justify-center my-2">
+                          <div
+                            key={msg.id}
+                            className="flex justify-center my-2"
+                          >
                             <div className="px-space-sm py-1 bg-surface-container border border-on-surface rounded font-label-sm text-label-sm text-primary font-bold shadow-[1px_1px_0px_#1c1b1b]">
                               {msg.text}
                             </div>
@@ -542,12 +594,17 @@ export default function Video() {
 
                       if (msg.sender === 'partner') {
                         return (
-                          <div key={msg.id} className="flex flex-col items-start gap-1 max-w-[85%]">
+                          <div
+                            key={msg.id}
+                            className="flex flex-col items-start gap-1 max-w-[85%]"
+                          >
                             <div className="flex items-center gap-1">
                               <span className="font-label-sm text-label-sm font-bold text-primary-container">
                                 {msg.name}
                               </span>
-                              <span className="font-label-sm text-[10px] text-tertiary">{msg.time}</span>
+                              <span className="font-label-sm text-[10px] text-tertiary">
+                                {msg.time}
+                              </span>
                             </div>
                             <div className="p-space-sm bg-surface-container-lowest text-on-surface rounded-lg border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] font-body-sm text-body-sm">
                               {msg.text}
@@ -558,10 +615,17 @@ export default function Video() {
 
                       // User message
                       return (
-                        <div key={msg.id} className="flex flex-col items-end gap-1 ml-auto max-w-[85%]">
+                        <div
+                          key={msg.id}
+                          className="flex flex-col items-end gap-1 ml-auto max-w-[85%]"
+                        >
                           <div className="flex items-center gap-1">
-                            <span className="font-label-sm text-[10px] text-tertiary">{msg.time}</span>
-                            <span className="font-label-sm text-label-sm font-bold text-on-surface">{msg.name}</span>
+                            <span className="font-label-sm text-[10px] text-tertiary">
+                              {msg.time}
+                            </span>
+                            <span className="font-label-sm text-label-sm font-bold text-on-surface">
+                              {msg.name}
+                            </span>
                           </div>
                           <div className="p-space-sm bg-secondary-container text-on-secondary-container rounded-lg border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] font-body-sm text-body-sm font-medium">
                             {msg.text}
@@ -573,7 +637,11 @@ export default function Video() {
 
                   {/* Chat Input Bar */}
                   <div className="p-space-sm border-t-2 border-on-surface bg-surface-container-low">
-                    <form id="chat-form" onSubmit={handleChatSubmit} className="flex items-center gap-2">
+                    <form
+                      id="chat-form"
+                      onSubmit={handleChatSubmit}
+                      className="flex items-center gap-2"
+                    >
                       <div className="relative flex-1">
                         <input
                           ref={chatInputRef}
@@ -591,21 +659,26 @@ export default function Video() {
                         title="Send message"
                         className="px-space-sm py-2 bg-primary-container text-on-primary-container border-2 border-on-surface rounded-lg shadow-[2px_2px_0px_#1c1b1b] hover:bg-[#ff8638] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center shrink-0"
                       >
-                        <span className="material-symbols-outlined text-[18px]">send</span>
+                        <span className="material-symbols-outlined text-[18px]">
+                          send
+                        </span>
                       </button>
                     </form>
                   </div>
                 </div>
               </div>
-
             </div>
 
             {/* ── Safety & Shortcuts Banner ───────────────────────────────── */}
             <div className="mt-space-xs flex flex-wrap items-center justify-between gap-space-sm px-space-md py-space-xs bg-surface-container-high rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b]">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px] text-primary">security</span>
+                <span className="material-symbols-outlined text-[16px] text-primary">
+                  security
+                </span>
                 <span className="font-label-sm text-label-sm text-on-surface">
-                  <strong>Adda Safety Guarantee:</strong> No video recordings are stored. Be kind, follow community etiquette, and tap Next or Report if anyone violates guidelines.
+                  <strong>Adda Safety Guarantee:</strong> No video recordings
+                  are stored. Be kind, follow community etiquette, and tap Next
+                  or Report if anyone violates guidelines.
                 </span>
               </div>
               <div className="hidden md:flex items-center gap-space-sm font-label-sm text-label-sm text-on-surface-variant">
@@ -638,19 +711,26 @@ export default function Video() {
               <div className="w-full max-w-md bg-surface-container-lowest rounded-xl border-2 border-on-surface shadow-[6px_6px_0px_#1c1b1b] p-space-md flex flex-col gap-space-sm animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center justify-between border-b-2 border-on-surface pb-space-xs">
                   <div className="flex items-center gap-1.5 text-error">
-                    <span className="material-symbols-outlined text-[22px]">warning</span>
-                    <h3 className="font-headline-md text-[18px] font-bold text-on-surface">Report &amp; Disconnect</h3>
+                    <span className="material-symbols-outlined text-[22px]">
+                      warning
+                    </span>
+                    <h3 className="font-headline-md text-[18px] font-bold text-on-surface">
+                      Report &amp; Disconnect
+                    </h3>
                   </div>
                   <button
                     id="close-modal-btn"
                     onClick={() => setReportModalOpen(false)}
                     className="p-1 rounded hover:bg-surface-variant text-on-surface"
                   >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
+                    <span className="material-symbols-outlined text-[18px]">
+                      close
+                    </span>
                   </button>
                 </div>
                 <p className="font-body-sm text-body-sm text-on-surface-variant">
-                  Help maintain a friendly campus adda. Immediate action is taken against harassment or inappropriate video.
+                  Help maintain a friendly campus adda. Immediate action is
+                  taken against harassment or inappropriate video.
                 </p>
                 <div className="flex flex-col gap-1.5 font-label-sm text-label-sm text-on-surface">
                   <label className="flex items-center gap-2 p-2 rounded border border-on-surface hover:bg-surface-container cursor-pointer">
@@ -705,7 +785,6 @@ export default function Video() {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </main>
@@ -718,7 +797,8 @@ export default function Video() {
               KothaKoi (কথা কই) • Built for student addas &amp; friendly chats
             </p>
             <p className="font-label-sm text-label-sm text-on-surface-variant">
-              Zero profile footprints. Ephemeral p2p connections across campuses.
+              Zero profile footprints. Ephemeral p2p connections across
+              campuses.
             </p>
           </div>
           <div className="flex items-center gap-space-md lg:gap-gutter-desktop flex-wrap justify-center">
@@ -746,7 +826,6 @@ export default function Video() {
           </div>
         </div>
       </footer>
-
     </div>
   )
 }

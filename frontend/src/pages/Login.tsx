@@ -1,83 +1,81 @@
 /**
  * Login.tsx – KothaKoi UIU Student Login Screen
- * Prototype UI mockup exclusively for United International University (UIU) students.
+ * Visual UI login screen exclusively for United International University (UIU) students.
  */
 import { useState, FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { apiClient, ApiClientError } from '../api/client'
+import { useAuth } from '../context'
+import type { AuthUser } from '../types/auth'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [identifier, setIdentifier] = useState('')
+  const location = useLocation()
+  const { loginUser } = useAuth()
+
+  const [identifier, setIdentifier] = useState(() => {
+    const state = location.state as { email?: string } | null
+    return state?.email || ''
+  })
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(true)
   const [showForgotModal, setShowForgotModal] = useState(false)
-  const [forgotEmail, setForgotEmail] = useState('')
-  const [forgotSent, setForgotSent] = useState(false)
-  const [loginFeedback, setLoginFeedback] = useState('')
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [infoNotice, setInfoNotice] = useState('')
 
-  function validateUiuIdentifier(val: string): { valid: boolean; message?: string } {
-    const trimmed = val.trim()
-    if (!trimmed) {
-      return { valid: false, message: 'Please enter your UIU email or Student ID.' }
-    }
-
-    // Student ID login: If no '@', check if digits / alphanumeric student ID
-    if (!trimmed.includes('@')) {
-      const studentIdClean = trimmed.replace(/\s+/g, '')
-      if (/^[0-9]{7,10}$/.test(studentIdClean)) {
-        return { valid: true }
-      }
-      return {
-        valid: false,
-        message: 'Student ID must be 7 to 10 digits (e.g. 2310125) or enter your full UIU email.',
-      }
-    }
-
-    // Email login: validate that domain belongs to uiu.ac.bd or subdomains like bscse.uiu.ac.bd
-    const uiuEmailRegex = /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9-]+\.)*uiu\.ac\.bd$/i
-    if (!uiuEmailRegex.test(trimmed)) {
-      return {
-        valid: false,
-        message: 'Exclusively for United International University (UIU) students. Email domain must end with uiu.ac.bd (e.g., 2310125@bscse.uiu.ac.bd). Other domains are not accepted.',
-      }
-    }
-
-    return { valid: true }
-  }
-
-  function handleSubmit(e: FormEvent) {
+  async function handleFormSubmit(e: FormEvent) {
     e.preventDefault()
+    if (isLoggingIn) return
     setErrorMessage('')
+    setInfoNotice('')
 
-    const check = validateUiuIdentifier(identifier)
-    if (!check.valid) {
-      setErrorMessage(check.message || 'Invalid UIU credentials.')
+    const cleanIdentifier = identifier.trim()
+    if (!cleanIdentifier) {
+      setErrorMessage('Please enter your UIU Student ID or institutional email.')
       return
     }
 
-    if (!password.trim()) {
+    if (!password) {
       setErrorMessage('Please enter your password.')
       return
     }
 
-    // Clearly treat login as a prototype flow without claiming secure authentication
-    setLoginFeedback('Prototype login verified for preview! Redirecting to nickname selection...')
-    setTimeout(() => {
-      navigate('/choose-nickname')
-    }, 600)
+    setIsLoggingIn(true)
+    try {
+      const res = await apiClient.post<{ ok: boolean; user: AuthUser }>(
+        '/auth/login',
+        {
+          identifier: cleanIdentifier,
+          password,
+        }
+      )
+
+      if (res && res.user) {
+        loginUser(res.user)
+        const from = (location.state as { from?: { pathname?: string } })?.from
+          ?.pathname
+        if (from) {
+          navigate(from, { replace: true })
+        } else if (res.user.hasProfile) {
+          navigate('/chat', { replace: true })
+        } else {
+          navigate('/choose-nickname', { replace: true })
+        }
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setErrorMessage(err.message)
+      } else {
+        setErrorMessage(
+          'Failed to sign in. Please check your credentials and network.'
+        )
+      }
+    } finally {
+      setIsLoggingIn(false)
+    }
   }
 
-  function handleForgotSubmit(e: FormEvent) {
-    e.preventDefault()
-    const check = validateUiuIdentifier(forgotEmail)
-    if (!check.valid || !forgotEmail.includes('@')) {
-      alert('Please enter a valid UIU institutional email ending with uiu.ac.bd.')
-      return
-    }
-    setForgotSent(true)
-  }
 
   return (
     <div className="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between overflow-x-hidden">
@@ -89,7 +87,9 @@ export default function Login() {
             <span className="font-headline-md text-xl sm:text-2xl font-bold tracking-tight text-on-surface">
               KothaKoi
             </span>
-            <span className="font-headline-md text-xl sm:text-2xl font-bold text-primary">.</span>
+            <span className="font-headline-md text-xl sm:text-2xl font-bold text-primary">
+              .
+            </span>
             <span className="hidden sm:inline-block font-label-sm text-[11px] px-1.5 py-0.5 rounded bg-secondary-container text-on-secondary-container border border-on-surface ml-1">
               কথা কই
             </span>
@@ -132,7 +132,6 @@ export default function Login() {
         <div className="relative w-full max-w-md mx-auto">
           {/* Card Frame */}
           <div className="bg-surface-container-lowest rounded-2xl border-2 border-on-surface shadow-[5px_5px_0px_#1c1b1b] p-6 sm:p-8">
-            
             {/* Top Mascot Mini Badge */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -143,16 +142,51 @@ export default function Login() {
                     viewBox="0 0 64 64"
                     xmlns="http://www.w3.org/2000/svg"
                   >
-                    <path d="M22 10V6H24V10H22ZM28 8V4H30V8H28ZM36 10V6H38V10H36Z" fill="#F47721" />
-                    <rect fill="#FFE087" height="26" rx="2" stroke="#1c1b1b" strokeWidth="2" width="30" x="14" y="16" />
-                    <path d="M14 26H44M14 34H44" stroke="#9C4500" strokeDasharray="2 3" strokeLinecap="round" strokeWidth="2" />
-                    <path d="M44 20H49C51.2 20 53 21.8 53 24V28C53 30.2 51.2 32 49 32H44" stroke="#1c1b1b" strokeWidth="2" />
+                    <path
+                      d="M22 10V6H24V10H22ZM28 8V4H30V8H28ZM36 10V6H38V10H36Z"
+                      fill="#F47721"
+                    />
+                    <rect
+                      fill="#FFE087"
+                      height="26"
+                      rx="2"
+                      stroke="#1c1b1b"
+                      strokeWidth="2"
+                      width="30"
+                      x="14"
+                      y="16"
+                    />
+                    <path
+                      d="M14 26H44M14 34H44"
+                      stroke="#9C4500"
+                      strokeDasharray="2 3"
+                      strokeLinecap="round"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M44 20H49C51.2 20 53 21.8 53 24V28C53 30.2 51.2 32 49 32H44"
+                      stroke="#1c1b1b"
+                      strokeWidth="2"
+                    />
                     <rect fill="#1c1b1b" height="4" width="3" x="20" y="24" />
                     <rect fill="#1c1b1b" height="4" width="3" x="35" y="24" />
                     <rect fill="#F47721" height="2" width="3" x="18" y="29" />
                     <rect fill="#F47721" height="2" width="3" x="37" y="29" />
-                    <path d="M26 31C26 32.5 27.5 34 29 34C30.5 34 32 32.5 32 31" stroke="#1c1b1b" strokeWidth="2" />
-                    <rect fill="#FFFFFF" height="4" rx="1" stroke="#1c1b1b" strokeWidth="2" width="38" x="10" y="44" />
+                    <path
+                      d="M26 31C26 32.5 27.5 34 29 34C30.5 34 32 32.5 32 31"
+                      stroke="#1c1b1b"
+                      strokeWidth="2"
+                    />
+                    <rect
+                      fill="#FFFFFF"
+                      height="4"
+                      rx="1"
+                      stroke="#1c1b1b"
+                      strokeWidth="2"
+                      width="38"
+                      x="10"
+                      y="44"
+                    />
                   </svg>
                 </div>
                 <div>
@@ -160,7 +194,7 @@ export default function Login() {
                     Student Login
                   </h1>
                   <p className="font-label-sm text-xs text-on-surface-variant">
-                    Enter with your UIU account
+                    Enter your UIU credentials
                   </p>
                 </div>
               </div>
@@ -179,61 +213,70 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Prototype Notice */}
-            <div className="mb-4 p-2.5 bg-[#FFF5E6] rounded-xl border border-on-surface/70 flex items-start gap-2 text-xs">
-              <span className="material-symbols-outlined text-outline text-[16px] shrink-0 mt-0.5">
-                info
-              </span>
-              <p className="font-body-sm text-[11px] text-on-surface leading-tight">
-                <span className="font-bold">Prototype UI Flow:</span> Authentication is simulated for preview. Real credentials are not verified against a live production database.
-              </p>
-            </div>
-
             {/* Error Message banner */}
             {errorMessage && (
-              <div className="mb-4 p-2.5 bg-error-container text-on-error-container rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] font-label-sm text-xs font-bold flex items-start gap-1.5">
-                <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">error</span>
+              <div
+                role="alert"
+                className="mb-4 p-2.5 bg-error-container text-on-error-container rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] font-label-sm text-xs font-bold flex items-start gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
+                  error
+                </span>
                 <span>{errorMessage}</span>
               </div>
             )}
 
-            {/* Success Feedback banner */}
-            {loginFeedback && (
-              <div className="mb-4 p-2.5 bg-emerald-100 text-emerald-800 rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] font-label-sm text-xs font-bold flex items-center gap-1.5 animate-pulse">
-                <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                <span>{loginFeedback}</span>
+            {/* Info Notice banner */}
+            {infoNotice && (
+              <div
+                role="status"
+                className="mb-4 p-3 bg-[#FFF5E6] text-on-surface rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] font-label-sm text-xs space-y-1"
+              >
+                <div className="font-bold flex items-center gap-1.5 text-primary">
+                  <span className="material-symbols-outlined text-[16px]">
+                    info
+                  </span>
+                  <span>UI Demonstration Notice</span>
+                </div>
+                <p className="font-body-sm text-[11px] text-on-surface-variant leading-relaxed">
+                  {infoNotice}
+                </p>
               </div>
             )}
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* UIU Email or Student ID */}
+            <form onSubmit={handleFormSubmit} className="space-y-4">
+              {/* UIU Student ID or Institutional Email */}
               <div>
                 <label
                   htmlFor="identifier"
                   className="block font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface mb-1"
                 >
-                  UIU Email or Student ID
+                  UIU Student ID or Institutional Email
                 </label>
                 <div className="relative">
                   <input
                     id="identifier"
                     type="text"
+                    autoComplete="username"
                     required
                     value={identifier}
                     onChange={(e) => {
                       setIdentifier(e.target.value)
                       if (errorMessage) setErrorMessage('')
+                      if (infoNotice) setInfoNotice('')
                     }}
-                    placeholder="e.g. 2310125@bscse.uiu.ac.bd or 2310125"
-                    className="w-full px-3 py-2 sm:py-2.5 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
+                    placeholder="e.g. 011231000 or student@bscse.uiu.ac.bd"
+                    className="w-full px-3 py-2.5 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
                   />
-                  <span className="absolute right-3 top-2.5 sm:top-3 material-symbols-outlined text-outline text-[18px] pointer-events-none">
+                  <span className="absolute right-3 top-3 material-symbols-outlined text-outline text-[18px] pointer-events-none">
                     badge
                   </span>
                 </div>
                 <p className="mt-1 font-label-sm text-[10px] text-on-surface-variant">
-                  Accepts UIU email (e.g. <span className="font-bold">2310125@bscse.uiu.ac.bd</span>) or Student ID prefix (e.g. <span className="font-bold">2310125</span>)
+                  Enter your UIU Student ID (e.g.{' '}
+                  <span className="font-bold">011231000</span>) or email ending
+                  with <span className="font-bold">uiu.ac.bd</span>
                 </p>
               </div>
 
@@ -246,32 +289,29 @@ export default function Login() {
                   >
                     Password
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotModal(true)}
-                    className="font-label-sm text-xs text-primary hover:text-primary-container font-bold underline decoration-1 underline-offset-2"
-                  >
-                    Forgot password?
-                  </button>
                 </div>
                 <div className="relative">
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     required
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value)
                       if (errorMessage) setErrorMessage('')
+                      if (infoNotice) setInfoNotice('')
                     }}
-                    placeholder="Enter your password"
-                    className="w-full px-3 py-2 sm:py-2.5 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
+                    placeholder="••••••••••••"
+                    className="w-full px-3 py-2.5 pr-11 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
                   />
                   <button
                     type="button"
+                    id="toggle-password-visibility"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 sm:top-3 text-outline hover:text-on-surface transition-colors"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                     title={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-2.5 top-2.5 p-1 text-on-surface-variant hover:text-on-surface focus:outline-none"
                   >
                     <span className="material-symbols-outlined text-[18px]">
                       {showPassword ? 'visibility_off' : 'visibility'}
@@ -280,60 +320,46 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* Remember me */}
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-2 border-on-surface text-primary-container focus:ring-0 cursor-pointer"
-                  />
-                  <span className="font-label-sm text-xs text-on-surface">Remember this device</span>
-                </label>
-              </div>
-
-              {/* Submit Button */}
+              {/* LOG IN Button */}
               <button
                 id="login-btn"
                 type="submit"
-                className="w-full py-3 bg-primary-container text-on-surface font-headline-md text-sm font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] hover:bg-[#ff8638] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2"
+                disabled={isLoggingIn}
+                className="w-full py-3 bg-primary-container text-on-surface font-headline-md text-sm font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] hover:bg-[#ff8638] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                <span>Login to KothaKoi (Prototype)</span>
-                <span className="material-symbols-outlined text-[18px]">login</span>
+                <span>{isLoggingIn ? 'LOGGING IN...' : 'LOG IN'}</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  login
+                </span>
               </button>
+
+              {/* Immediately below LOG IN: Two clearly clickable buttons */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <button
+                  type="button"
+                  id="forgot-password-btn"
+                  onClick={() => setShowForgotModal(true)}
+                  className="w-full py-2.5 px-3 bg-surface-container hover:bg-surface-container-high text-on-surface font-label-sm text-xs font-bold rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    lock_reset
+                  </span>
+                  <span>Forgot Password?</span>
+                </button>
+                <Link
+                  to="/register"
+                  id="create-account-btn"
+                  className="w-full py-2.5 px-3 bg-secondary-container hover:bg-[#ffe087] text-on-surface font-label-sm text-xs font-bold rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-1.5 text-center"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    person_add
+                  </span>
+                  <span>Create Account</span>
+                </Link>
+              </div>
             </form>
 
-            {/* Quick Demo Fill Buttons (for testing) */}
-            <div className="mt-4 pt-3 border-t border-on-surface/20 flex flex-wrap items-center justify-between gap-1.5">
-              <span className="font-label-sm text-[11px] text-outline">Quick test:</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIdentifier('2310125@bscse.uiu.ac.bd')
-                    setPassword('UIUstudent123!')
-                    setErrorMessage('')
-                  }}
-                  className="font-label-sm text-[10px] px-2 py-0.5 rounded bg-surface-container border border-on-surface shadow-[1px_1px_0px_#1c1b1b] hover:bg-secondary-container transition-all"
-                >
-                  UIU Email
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIdentifier('2310125')
-                    setPassword('UIUstudent123!')
-                    setErrorMessage('')
-                  }}
-                  className="font-label-sm text-[10px] px-2 py-0.5 rounded bg-surface-container border border-on-surface shadow-[1px_1px_0px_#1c1b1b] hover:bg-secondary-container transition-all"
-                >
-                  Student ID
-                </button>
-              </div>
-            </div>
-
-            {/* Link to Register */}
+            {/* Additional info footer in card */}
             <div className="mt-5 text-center">
               <p className="font-body-sm text-xs text-on-surface-variant">
                 Don't have an account yet?{' '}
@@ -345,79 +371,89 @@ export default function Login() {
                 </Link>
               </p>
             </div>
-
           </div>
         </div>
       </main>
 
-      {/* ── Forgot Password Modal Mockup ────────────────────────── */}
+      {/* ── Forgot Password Modal ──────────────────────────────── */}
       {showForgotModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="forgot-modal-title"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
           <div className="bg-surface-container-lowest max-w-sm w-full rounded-2xl border-2 border-on-surface shadow-[5px_5px_0px_#1c1b1b] p-6 relative">
+            {/* Close Button (X) */}
             <button
-              onClick={() => {
-                setShowForgotModal(false)
-                setForgotSent(false)
-              }}
-              className="absolute top-4 right-4 text-on-surface hover:text-error"
+              type="button"
+              id="close-forgot-modal"
+              onClick={() => setShowForgotModal(false)}
+              className="absolute top-4 right-4 text-on-surface hover:text-error transition-colors p-1"
+              aria-label="Close modal"
             >
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
 
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-secondary-container border border-on-surface flex items-center justify-center shadow-[1px_1px_0px_#1c1b1b]">
-                <span className="material-symbols-outlined text-[18px]">lock_reset</span>
+            {/* Modal Header */}
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-secondary-container border-2 border-on-surface flex items-center justify-center shadow-[2px_2px_0px_#1c1b1b] shrink-0">
+                <span className="material-symbols-outlined text-[22px] text-on-surface">
+                  lock_reset
+                </span>
               </div>
-              <h3 className="font-headline-md text-lg font-bold text-on-surface">
-                Password Recovery
-              </h3>
+              <div>
+                <h3
+                  id="forgot-modal-title"
+                  className="font-headline-md text-base sm:text-lg font-bold text-on-surface"
+                >
+                  Password Recovery
+                </h3>
+                <p className="font-label-sm text-[11px] text-on-surface-variant">
+                  UIU Student Authentication
+                </p>
+              </div>
             </div>
 
-            {forgotSent ? (
-              <div className="space-y-3">
-                <div className="p-3 bg-[#FFF5E6] rounded-xl border border-on-surface text-xs text-on-surface space-y-1">
-                  <p className="font-bold text-emerald-700 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[16px]">mail</span>
-                    Reset link simulated!
-                  </p>
-                  <p>
-                    In production, instructions are dispatched to your UIU webmail (<strong>{forgotEmail}</strong>).
-                  </p>
-                </div>
+            {/* Modal Content */}
+            <div className="space-y-4">
+              <div className="p-3.5 bg-[#FFF5E6] rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] space-y-2 text-xs">
+                <p className="font-bold flex items-center gap-1.5 text-primary">
+                  <span className="material-symbols-outlined text-[18px]">
+                    info
+                  </span>
+                  Backend Feature Pending
+                </p>
+                <p className="font-body-sm text-xs leading-relaxed text-on-surface">
+                  Password recovery is not yet available. The password authentication backend still needs implementation before automated resets can be dispatched.
+                </p>
+                <p className="font-body-sm text-[11px] text-on-surface-variant">
+                  No reset email has been sent. If you need a new UIU account or verification, please visit the registration page.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  id="modal-dismiss-btn"
+                  onClick={() => setShowForgotModal(false)}
+                  className="w-full py-2.5 bg-primary-container text-on-surface font-headline-md text-xs font-bold uppercase rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] hover:bg-[#ff8638] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+                >
+                  Understood
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setShowForgotModal(false)
-                    setForgotSent(false)
+                    navigate('/register')
                   }}
-                  className="w-full py-2 bg-primary-container text-on-surface font-bold text-xs uppercase rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b]"
+                  className="w-full py-2 bg-surface-container hover:bg-surface-container-high text-on-surface font-label-sm text-xs font-bold rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] transition-all text-center"
                 >
-                  Back to Login
+                  Go to Registration
                 </button>
               </div>
-            ) : (
-              <form onSubmit={handleForgotSubmit} className="space-y-3">
-                <p className="font-body-sm text-xs text-on-surface-variant">
-                  Enter your registered UIU email. A password reset link will be sent to your student webmail.
-                </p>
-                <div>
-                  <input
-                    type="email"
-                    required
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="2310125@bscse.uiu.ac.bd"
-                    className="w-full px-3 py-2 bg-surface text-on-surface font-body-sm text-xs rounded-lg border-2 border-on-surface shadow-[1px_1px_0px_#1c1b1b] focus:outline-none"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full py-2 bg-primary-container text-on-surface font-bold text-xs uppercase rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] hover:bg-[#ff8638]"
-                >
-                  Send Reset Link (Demo)
-                </button>
-              </form>
-            )}
+            </div>
           </div>
         </div>
       )}
@@ -431,7 +467,7 @@ export default function Login() {
           <div className="flex items-center gap-3 font-label-sm text-on-surface-variant">
             <span>🔒 Confidential Auth</span>
             <span>•</span>
-            <span>Prototype User Flow</span>
+            <span>UIU Student Access</span>
           </div>
         </div>
       </footer>

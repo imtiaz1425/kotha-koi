@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kothakoi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kothakoi
+      POSTGRES_PASSWORD: kothakoi_dev_password
+      POSTGRES_DB: kothakoi
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kothakoi -d kothakoi"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local

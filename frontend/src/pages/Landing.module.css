@@ -16,7 +16,9 @@
 
 /* Responsive: left-align on wider screens */
 @media (min-width: 768px) {
-  .inner { text-align: left; }
+  .inner {
+    text-align: left;
+  }
 }
 
 .badge {
@@ -41,7 +43,11 @@
 }
 
 .gradient {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    var(--color-accent)
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -57,7 +63,9 @@
 }
 
 @media (min-width: 768px) {
-  .subtitle { margin-inline: 0; }
+  .subtitle {
+    margin-inline: 0;
+  }
 }
 
 .actions {
@@ -68,7 +76,9 @@
 }
 
 @media (min-width: 768px) {
-  .actions { justify-content: flex-start; }
+  .actions {
+    justify-content: flex-start;
+  }
 }
 
 .btnPrimary {
@@ -79,7 +89,10 @@
   font-weight: 700;
   font-size: 1rem;
   border-radius: var(--radius-md);
-  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+  transition:
+    background var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
   box-shadow: 0 0 24px rgba(108, 99, 255, 0.4);
 }
 
@@ -99,7 +112,9 @@
   font-weight: 600;
   font-size: 1rem;
   border-radius: var(--radius-md);
-  transition: border-color var(--transition), color var(--transition);
+  transition:
+    border-color var(--transition),
+    color var(--transition);
 }
 
 .btnSecondary:hover {

@@ -1,95 +1,232 @@
 /**
  * Register.tsx – KothaKoi UIU Student Registration Screen
- * Prototype UI mockup exclusively for United International University (UIU) students.
+ * Verified student account creation exclusively for United International University (UIU) students.
  */
-import { useState, FormEvent } from 'react'
+import { useState, useEffect, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiClient, ApiClientError } from '../api/client'
+import type { AuthUser } from '../types/auth'
 
 export default function Register() {
   const navigate = useNavigate()
-  const [realName, setRealName] = useState('')
+
   const [email, setEmail] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [isEmailVerified, setIsEmailVerified] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [countdown, setCountdown] = useState(0)
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [isRequesting, setIsRequesting] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [successNotice, setSuccessNotice] = useState('')
 
-  // Email verification UI state (explicit mock UI)
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpCode, setOtpCode] = useState('')
-  const [isEmailVerified, setIsEmailVerified] = useState(false)
-  const [otpNotice, setOtpNotice] = useState('')
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (countdown <= 0) return
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [countdown])
 
-  function validateUiuEmail(val: string): { valid: boolean; message?: string } {
-    const trimmed = val.trim()
+  function validateEmailInput(val: string): {
+    valid: boolean
+    message?: string
+  } {
+    const trimmed = val.trim().toLowerCase()
     if (!trimmed) {
       return { valid: false, message: 'Please enter your UIU student email.' }
     }
-    const uiuEmailRegex = /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9-]+\.)*uiu\.ac\.bd$/i
+    if (!trimmed.includes('@')) {
+      return {
+        valid: false,
+        message:
+          'Please enter a complete UIU email address (e.g. 2310125@bscse.uiu.ac.bd).',
+      }
+    }
+    const uiuEmailRegex =
+      /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9-]+\.)*uiu\.ac\.bd$/i
     if (!uiuEmailRegex.test(trimmed)) {
       return {
         valid: false,
-        message: 'Exclusively for United International University (UIU) students. Email must belong to the uiu.ac.bd domain (e.g., 2310125@bscse.uiu.ac.bd). Other domains are not accepted.',
+        message:
+          'Exclusively for United International University (UIU) students. Email domain must end with uiu.ac.bd (e.g., 2310125@bscse.uiu.ac.bd). Other domains are not accepted.',
       }
     }
     return { valid: true }
   }
 
-  function handleSendOtp() {
+  async function handleSendCode() {
     setErrorMessage('')
-    const check = validateUiuEmail(email)
+    setSuccessNotice('')
+    setPasswordError('')
+
+    if (!termsAccepted) {
+      setErrorMessage(
+        'Please accept the UIU Student Code of Conduct and Privacy Terms to continue.'
+      )
+      return
+    }
+
+    const check = validateEmailInput(email)
     if (!check.valid) {
       setErrorMessage(check.message || 'Please enter a valid UIU email.')
       return
     }
-    setOtpSent(true)
-    setOtpNotice('Simulated OTP generated! (Mock UI: Real email delivery not yet connected)')
+
+    setIsRequesting(true)
+    try {
+      const res = await apiClient.post<{ ok: boolean; message?: string }>(
+        '/auth/request-code',
+        {
+          email: email.trim().toLowerCase(),
+          acceptTerms: true,
+        }
+      )
+      if (res.ok) {
+        setOtpSent(true)
+        setCountdown(60)
+        setSuccessNotice(
+          'Verification code sent! Please check your UIU student email inbox (or backend server logs in development).'
+        )
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setErrorMessage(err.message)
+      } else {
+        setErrorMessage(
+          'Unable to send verification code. Please check your network connection and try again.'
+        )
+      }
+    } finally {
+      setIsRequesting(false)
+    }
   }
 
-  function handleVerifyOtp() {
-    if (otpCode.trim().length < 4) {
-      setErrorMessage('Please enter the mock OTP code.')
+  async function handleVerifyCode(e?: FormEvent) {
+    if (e) e.preventDefault()
+    if (isVerifying) return
+    setErrorMessage('')
+    setSuccessNotice('')
+    setPasswordError('')
+
+    if (!termsAccepted) {
+      setErrorMessage(
+        'Please accept the UIU Student Code of Conduct and Privacy Terms to continue.'
+      )
       return
     }
-    setIsEmailVerified(true)
-    setOtpNotice('Mock OTP Verified (Prototype Mode) ✓')
-    setErrorMessage('')
+
+    const cleanOtp = otpCode.trim()
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      setErrorMessage('Verification code must be exactly 6 digits.')
+      return
+    }
+
+    setIsVerifying(true)
+    try {
+      const res = await apiClient.post<{ ok: boolean; user: AuthUser }>(
+        '/auth/verify-code',
+        {
+          email: email.trim().toLowerCase(),
+          code: cleanOtp,
+        }
+      )
+
+      if (res && res.user) {
+        setIsEmailVerified(true)
+        setSuccessNotice(
+          'UIU email verified successfully! Please create your account password below.'
+        )
+      } else {
+        setErrorMessage(
+          'Verification failed. Please check your verification code and try again.'
+        )
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setErrorMessage(err.message)
+      } else {
+        setErrorMessage(
+          'Failed to verify code. Please check your network and try again.'
+        )
+      }
+    } finally {
+      setIsVerifying(false)
+    }
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSaveAccount(e: FormEvent) {
     e.preventDefault()
+    if (isSaving) return
     setErrorMessage('')
+    setPasswordError('')
 
-    if (!realName.trim()) {
-      setErrorMessage('Please enter your real name for student verification.')
-      return
-    }
-
-    const check = validateUiuEmail(email)
-    if (!check.valid) {
-      setErrorMessage(check.message || 'Please enter a valid UIU institutional email.')
-      return
-    }
-
-    if (!password.trim() || password.length < 8) {
-      setErrorMessage('Password must be at least 8 characters long.')
+    const cleanPassword = password.trim()
+    if (!cleanPassword || cleanPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters long.')
       return
     }
 
     if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match. Please verify.')
+      setPasswordError('Passwords do not match. Please verify.')
       return
     }
 
-    if (!termsAccepted) {
-      setErrorMessage('Please accept the UIU Student Code of Conduct and Privacy Terms.')
-      return
-    }
+    setIsSaving(true)
+    try {
+      const res = await apiClient.post<{ ok: boolean; message: string }>(
+        '/auth/set-password',
+        {
+          email: email.trim().toLowerCase(),
+          password,
+        }
+      )
 
-    // Prototype registration flow: navigate to choose-nickname
-    alert('Prototype registration complete! Proceeding to anonymous nickname selection.')
-    navigate('/choose-nickname')
+      if (res.ok) {
+        // Clear any active session from verify-code to ensure fresh login
+        try {
+          await apiClient.post('/auth/logout')
+        } catch {
+          // ignore
+        }
+        navigate('/login', {
+          state: { email: email.trim().toLowerCase() },
+          replace: true,
+        })
+      } else {
+        setErrorMessage('Failed to save account password. Please try again.')
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setErrorMessage(err.message)
+      } else {
+        setErrorMessage(
+          'Unable to save account. Please check your connection and try again.'
+        )
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function handleFormSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (isRequesting || isVerifying || isSaving) return
+
+    if (!otpSent) {
+      handleSendCode()
+    } else if (!isEmailVerified) {
+      handleVerifyCode(e)
+    } else {
+      handleSaveAccount(e)
+    }
   }
 
   return (
@@ -102,7 +239,9 @@ export default function Register() {
             <span className="font-headline-md text-xl sm:text-2xl font-bold tracking-tight text-on-surface">
               KothaKoi
             </span>
-            <span className="font-headline-md text-xl sm:text-2xl font-bold text-primary">.</span>
+            <span className="font-headline-md text-xl sm:text-2xl font-bold text-primary">
+              .
+            </span>
             <span className="hidden sm:inline-block font-label-sm text-[11px] px-1.5 py-0.5 rounded bg-secondary-container text-on-secondary-container border border-on-surface ml-1">
               কথা কই
             </span>
@@ -145,19 +284,20 @@ export default function Register() {
         <div className="relative w-full max-w-lg mx-auto">
           {/* Card Frame */}
           <div className="bg-surface-container-lowest rounded-2xl border-2 border-on-surface shadow-[5px_5px_0px_#1c1b1b] p-6 sm:p-8">
-            
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-secondary-container rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] p-2 flex items-center justify-center shrink-0">
-                  <span className="text-2xl">🎓</span>
+                  <span className="text-2xl" role="img" aria-label="student cap">
+                    🎓
+                  </span>
                 </div>
                 <div>
                   <h1 className="font-headline-md text-xl sm:text-2xl font-bold text-on-surface">
                     UIU Registration
                   </h1>
                   <p className="font-label-sm text-xs text-on-surface-variant">
-                    Student account creation
+                    Verified student account creation
                   </p>
                 </div>
               </div>
@@ -179,67 +319,71 @@ export default function Register() {
             {/* Crucial Anonymity Notice Callout */}
             <div className="mb-4 p-3 bg-[#FFF5E6] rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] space-y-1">
               <div className="flex items-center gap-1.5 text-primary font-bold font-label-sm text-xs">
-                <span className="material-symbols-outlined text-[18px]">verified_user</span>
-                <span>Private Identity Guarantee</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  verified_user
+                </span>
+                <span>100% Anonymous by Design</span>
               </div>
               <p className="font-body-sm text-xs text-on-surface leading-snug">
-                Your <strong className="text-on-surface">Real Name</strong> is collected solely for student verification. In adda chat rooms, peers will <strong>NEVER</strong> see your real name or student ID.
+                Your email is used solely to verify UIU student status via OTP.
+                We <strong>never</strong> collect or store your real name or
+                student roster.
               </p>
             </div>
 
             {/* Error Message banner */}
             {errorMessage && (
-              <div className="mb-4 p-2.5 bg-error-container text-on-error-container rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] font-label-sm text-xs font-bold flex items-start gap-1.5">
-                <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">error</span>
+              <div
+                role="alert"
+                className="mb-4 p-2.5 bg-error-container text-on-error-container rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] font-label-sm text-xs font-bold flex items-start gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
+                  error
+                </span>
                 <span>{errorMessage}</span>
               </div>
             )}
 
+            {/* Success Feedback banner */}
+            {successNotice && (
+              <div
+                role="status"
+                className="mb-4 p-2.5 bg-emerald-100 text-emerald-800 rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] font-label-sm text-xs font-bold flex items-start gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
+                  check_circle
+                </span>
+                <span>{successNotice}</span>
+              </div>
+            )}
+
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Real Name */}
+            <form onSubmit={handleFormSubmit} className="space-y-4">
+              {/* UIU Email */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label
-                    htmlFor="realName"
+                    htmlFor="regEmail"
                     className="block font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface"
                   >
-                    Real Name
+                    UIU Institutional Email
                   </label>
-                  <span className="font-label-sm text-[10px] px-1.5 py-0.2 bg-surface-container rounded border border-on-surface/40 text-on-surface-variant font-bold">
-                    🔒 Kept Strictly Private
-                  </span>
+                  {otpSent && !isEmailVerified && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpSent(false)
+                        setOtpCode('')
+                        setErrorMessage('')
+                        setSuccessNotice('')
+                        setPasswordError('')
+                      }}
+                      className="font-label-sm text-[11px] text-primary hover:underline font-bold"
+                    >
+                      Change email
+                    </button>
+                  )}
                 </div>
-                <div className="relative">
-                  <input
-                    id="realName"
-                    type="text"
-                    required
-                    value={realName}
-                    onChange={(e) => {
-                      setRealName(e.target.value)
-                      if (errorMessage) setErrorMessage('')
-                    }}
-                    placeholder="e.g. Tanvir Ahmed"
-                    className="w-full px-3 py-2 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
-                  />
-                  <span className="absolute right-3 top-2.5 material-symbols-outlined text-outline text-[18px] pointer-events-none">
-                    badge
-                  </span>
-                </div>
-                <p className="mt-1 font-label-sm text-[10px] text-on-surface-variant">
-                  Private account record. Never displayed to chat peers.
-                </p>
-              </div>
-
-              {/* UIU Email */}
-              <div>
-                <label
-                  htmlFor="regEmail"
-                  className="block font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface mb-1"
-                >
-                  UIU Institutional Email
-                </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <input
@@ -247,166 +391,210 @@ export default function Register() {
                       type="email"
                       required
                       value={email}
+                      disabled={otpSent || isRequesting || isEmailVerified}
                       onChange={(e) => {
                         setEmail(e.target.value)
                         if (errorMessage) setErrorMessage('')
                       }}
                       placeholder="e.g. 2310125@bscse.uiu.ac.bd"
-                      className="w-full px-3 py-2 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
+                      className="w-full px-3 py-2 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all disabled:opacity-75 disabled:bg-surface-container"
                     />
                     <span className="absolute right-3 top-2.5 material-symbols-outlined text-outline text-[18px] pointer-events-none">
                       school
                     </span>
                   </div>
-                  {/* Send Code Button */}
+                  {/* Send / Resend Code Button */}
                   <button
                     type="button"
-                    onClick={handleSendOtp}
-                    className="px-3 py-2 bg-secondary-container hover:bg-[#ffe087] text-on-surface font-label-sm text-xs font-bold rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all shrink-0"
+                    id="send-code-btn"
+                    disabled={
+                      isRequesting ||
+                      (otpSent && countdown > 0) ||
+                      isEmailVerified
+                    }
+                    onClick={handleSendCode}
+                    className="px-3 py-2 bg-secondary-container hover:bg-[#ffe087] disabled:opacity-60 disabled:hover:bg-secondary-container text-on-surface font-label-sm text-xs font-bold rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all shrink-0"
                   >
-                    {otpSent ? 'Resend' : 'Send Code'}
+                    {isRequesting
+                      ? 'Sending...'
+                      : isEmailVerified
+                        ? 'Email Verified'
+                        : otpSent
+                          ? countdown > 0
+                            ? `Resend in ${countdown}s`
+                            : 'Resend Code'
+                          : 'Send Code'}
                   </button>
                 </div>
                 <p className="mt-1 font-label-sm text-[10px] text-on-surface-variant">
-                  Must end with uiu.ac.bd (e.g. <span className="font-bold">2310125@bscse.uiu.ac.bd</span>)
+                  Must end with uiu.ac.bd (e.g.{' '}
+                  <span className="font-bold">2310125@bscse.uiu.ac.bd</span>)
                 </p>
               </div>
 
-              {/* Email Verification UI Component (Explicitly labeled as Mock UI) */}
-              <div className="p-3 bg-surface-container rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-xs font-bold text-on-surface flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[16px] text-primary">mark_email_read</span>
-                    Email OTP Verification (Mock UI)
-                  </span>
-                  {isEmailVerified ? (
-                    <span className="font-label-sm text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-600 font-bold flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[13px]">check</span>
-                      Mock Verified
+              {/* 6-Digit Verification Code Section (Visible once code requested) */}
+              {otpSent && (
+                <div className="p-3 bg-surface-container rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="otpCode"
+                      className="block font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface"
+                    >
+                      6-Digit Verification Code
+                    </label>
+                    <span className="font-label-sm text-[10px] px-1.5 py-0.2 bg-surface-container-high rounded border border-on-surface/40 text-on-surface-variant font-bold">
+                      {isEmailVerified ? 'Verified ✓' : '10 Min TTL'}
                     </span>
-                  ) : (
-                    <span className="font-label-sm text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant border border-on-surface/30">
-                      Simulated
-                    </span>
-                  )}
-                </div>
-
-                <div className="p-2 bg-[#FFF5E6] rounded-lg border border-on-surface/40 text-[11px] font-body-sm text-on-surface leading-tight">
-                  <span className="font-bold text-primary">⚠️ Mock UI Preview:</span> Real email OTP delivery is simulated until production backend webmail services are deployed.
-                </div>
-
-                {otpNotice && (
-                  <p className="font-label-sm text-[11px] text-primary font-semibold">
-                    {otpNotice}
-                  </p>
-                )}
-
-                {!isEmailVerified && (
-                  <div className="flex items-center gap-2">
+                  </div>
+                  <div className="relative">
                     <input
                       id="otpCode"
                       type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       maxLength={6}
+                      autoFocus={!isEmailVerified}
+                      disabled={isEmailVerified}
+                      required
                       value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                      placeholder="Mock OTP (e.g. 749201)"
-                      className="flex-1 px-3 py-1.5 bg-surface-container-lowest font-mono text-xs tracking-widest text-on-surface rounded-lg border-2 border-on-surface shadow-[1px_1px_0px_#1c1b1b] focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleVerifyOtp}
-                      className="px-3 py-1.5 bg-primary-container text-on-surface font-label-sm text-xs font-bold uppercase rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] hover:bg-[#ff8638]"
-                    >
-                      Verify
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpCode('749201')
-                        setIsEmailVerified(true)
-                        setOtpNotice('Mock OTP verified for preview! ✓')
-                        setErrorMessage('')
-                      }}
-                      className="px-2 py-1.5 bg-[#FFF5E6] text-on-surface font-label-sm text-[10px] font-bold rounded-lg border border-on-surface hover:bg-secondary-container"
-                      title="Quick auto-fill for testing"
-                    >
-                      Auto-fill
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Password */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="regPassword"
-                    className="block font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface mb-1"
-                  >
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="regPassword"
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={password}
                       onChange={(e) => {
-                        setPassword(e.target.value)
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+                        setOtpCode(val)
                         if (errorMessage) setErrorMessage('')
                       }}
-                      placeholder="Min. 8 characters"
-                      className="w-full px-3 py-2 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
+                      placeholder="123456"
+                      className="w-full px-3 py-2 bg-surface-container-lowest text-on-surface font-mono text-center text-lg tracking-[0.3em] font-bold rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all disabled:opacity-75"
                     />
                   </div>
+                  <p className="font-body-sm text-[11px] text-on-surface-variant">
+                    {isEmailVerified
+                      ? 'Email verification confirmed with backend.'
+                      : 'Check your UIU student webmail for the verification code. In local dev, check backend console logs.'}
+                  </p>
                 </div>
+              )}
 
-                <div>
-                  <label
-                    htmlFor="confirmPassword"
-                    className="block font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface mb-1"
-                  >
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="confirmPassword"
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => {
-                        setConfirmPassword(e.target.value)
-                        if (errorMessage) setErrorMessage('')
-                      }}
-                      placeholder="Repeat password"
-                      className="w-full px-3 py-2 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Show password toggle */}
-              <div className="flex items-center justify-between text-xs font-label-sm">
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-on-surface-variant hover:text-on-surface flex items-center gap-1 font-bold"
+              {/* ── Success Indicator Directly Below OTP Verification Section ── */}
+              {isEmailVerified && (
+                <div
+                  id="email-verified-indicator"
+                  className="p-3 bg-emerald-50 rounded-xl border-2 border-emerald-600 shadow-[2px_2px_0px_#1c1b1b] flex items-center gap-3 animate-in fade-in duration-200"
                 >
-                  <span className="material-symbols-outlined text-[16px]">
-                    {showPassword ? 'visibility_off' : 'visibility'}
-                  </span>
-                  <span>{showPassword ? 'Hide passwords' : 'Show passwords'}</span>
-                </button>
-                {password && confirmPassword && (
-                  <span
-                    className={`font-bold ${
-                      password === confirmPassword ? 'text-emerald-700' : 'text-error'
-                    }`}
-                  >
-                    {password === confirmPassword ? 'Passwords match ✓' : 'Passwords do not match ✗'}
-                  </span>
-                )}
-              </div>
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 border-2 border-emerald-700 flex items-center justify-center shrink-0 text-emerald-700">
+                    <span className="material-symbols-outlined text-[24px]">
+                      check_circle
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-headline-md text-sm font-bold text-emerald-900 tracking-tight uppercase">
+                      UIU STUDENT VERIFIED
+                    </h3>
+                    <p className="font-body-sm text-xs text-emerald-800">
+                      Your UIU email has been successfully verified.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Password Fields (Revealed directly below success indicator) ── */}
+              {isEmailVerified && (
+                <div className="space-y-3 pt-1 animate-in fade-in duration-200">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Create Password */}
+                    <div>
+                      <label
+                        htmlFor="regPassword"
+                        className="block font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface mb-1"
+                      >
+                        Create Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="regPassword"
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value)
+                            if (passwordError) setPasswordError('')
+                            if (errorMessage) setErrorMessage('')
+                          }}
+                          placeholder="Min. 8 characters"
+                          className="w-full px-3 py-2 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div>
+                      <label
+                        htmlFor="confirmPassword"
+                        className="block font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface mb-1"
+                      >
+                        Confirm Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="confirmPassword"
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => {
+                            setConfirmPassword(e.target.value)
+                            if (passwordError) setPasswordError('')
+                            if (errorMessage) setErrorMessage('')
+                          }}
+                          placeholder="Repeat password"
+                          className="w-full px-3 py-2 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Show/Hide Toggle & Match Indicator */}
+                  <div className="flex items-center justify-between text-xs font-label-sm pt-0.5">
+                    <button
+                      type="button"
+                      id="toggle-password-visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-on-surface-variant hover:text-on-surface flex items-center gap-1 font-bold"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        {showPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                      <span>
+                        {showPassword ? 'Hide passwords' : 'Show passwords'}
+                      </span>
+                    </button>
+                    {password && confirmPassword && (
+                      <span
+                        className={`font-bold ${
+                          password === confirmPassword
+                            ? 'text-emerald-700'
+                            : 'text-error'
+                        }`}
+                      >
+                        {password === confirmPassword
+                          ? 'Passwords match ✓'
+                          : 'Passwords do not match ✗'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Inline Password Error */}
+                  {passwordError && (
+                    <div
+                      role="alert"
+                      className="p-2 bg-error-container text-on-error-container rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] font-label-sm text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        error
+                      </span>
+                      <span>{passwordError}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Privacy/Terms Consent */}
               <div className="p-3 bg-[#FFF5E6] rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b]">
@@ -416,6 +604,7 @@ export default function Register() {
                     type="checkbox"
                     required
                     checked={termsAccepted}
+                    disabled={isEmailVerified}
                     onChange={(e) => {
                       setTermsAccepted(e.target.checked)
                       if (errorMessage) setErrorMessage('')
@@ -423,20 +612,54 @@ export default function Register() {
                     className="w-4 h-4 mt-0.5 rounded border-2 border-on-surface text-primary-container focus:ring-0 cursor-pointer"
                   />
                   <span className="font-body-sm text-xs text-on-surface leading-tight">
-                    I agree to the <span className="font-bold">UIU Student Code of Conduct</span> and KothaKoi Privacy Terms. I understand harassment or misconduct results in an immediate ban.
+                    I agree to the{' '}
+                    <span className="font-bold">
+                      UIU Student Code of Conduct
+                    </span>{' '}
+                    and KothaKoi Privacy Terms. I understand harassment or
+                    misconduct results in an immediate ban.
                   </span>
                 </label>
               </div>
 
               {/* Submit Button */}
-              <button
-                id="register-btn"
-                type="submit"
-                className="w-full py-3 bg-primary-container text-on-surface font-headline-md text-sm font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] hover:bg-[#ff8638] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2"
-              >
-                <span>Create UIU Student Account (Prototype)</span>
-                <span className="material-symbols-outlined text-[18px]">how_to_reg</span>
-              </button>
+              {isEmailVerified ? (
+                /* SAVE & CREATE ACCOUNT Button */
+                <button
+                  id="save-account-btn"
+                  type="submit"
+                  disabled={isSaving}
+                  className="w-full py-3 bg-primary-container text-on-surface font-headline-md text-sm font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] hover:bg-[#ff8638] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+                >
+                  <span>
+                    {isSaving ? 'SAVING ACCOUNT...' : 'SAVE & CREATE ACCOUNT'}
+                  </span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    how_to_reg
+                  </span>
+                </button>
+              ) : (
+                /* Initial OTP Verification Button */
+                <button
+                  id="register-btn"
+                  type="submit"
+                  disabled={isRequesting || isVerifying}
+                  className="w-full py-3 bg-primary-container text-on-surface font-headline-md text-sm font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] hover:bg-[#ff8638] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  <span>
+                    {isRequesting
+                      ? 'Sending Code...'
+                      : isVerifying
+                        ? 'Verifying Code...'
+                        : otpSent
+                          ? 'Verify Email Code'
+                          : 'Send Verification Code'}
+                  </span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    {otpSent ? 'verified' : 'send'}
+                  </span>
+                </button>
+              )}
             </form>
 
             {/* Link to Login */}
@@ -451,7 +674,6 @@ export default function Register() {
                 </Link>
               </p>
             </div>
-
           </div>
         </div>
       </main>
@@ -460,12 +682,13 @@ export default function Register() {
       <footer className="w-full bg-[#FFF5E6] border-t-2 border-on-surface shadow-[0_-2px_0px_#1c1b1b] shrink-0 py-3">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between text-xs gap-2">
           <p className="font-label-sm text-on-surface">
-            KothaKoi (কথা কই) • Exclusively for United International University students
+            KothaKoi (কথা কই) • Exclusively for United International University
+            students
           </p>
           <div className="flex items-center gap-3 font-label-sm text-on-surface-variant">
             <span>🛡️ Zero Harassment Policy</span>
             <span>•</span>
-            <span>Prototype Registration Flow</span>
+            <span>UIU Student Registration</span>
           </div>
         </div>
       </footer>

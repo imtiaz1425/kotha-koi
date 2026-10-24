@@ -6,10 +6,12 @@
  */
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context'
 
 export default function Home() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const { user, isAuthenticated, logout } = useAuth()
 
   // Close profile menu on outside click
   useEffect(() => {
@@ -24,6 +26,11 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [profileMenuOpen])
 
+  async function handleLogout() {
+    setProfileMenuOpen(false)
+    await logout()
+  }
+
   return (
     <div className="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between overflow-x-hidden">
       {/* ── Header ─────────────────────────────────────────────── */}
@@ -35,7 +42,9 @@ export default function Home() {
               <span className="font-headline-md text-headline-md font-bold tracking-tight text-on-surface">
                 KothaKoi
               </span>
-              <span className="font-headline-md text-headline-md font-bold text-primary">.</span>
+              <span className="font-headline-md text-headline-md font-bold text-primary">
+                .
+              </span>
               <span className="hidden sm:inline-block font-label-sm text-label-sm px-space-xs py-0.5 rounded bg-secondary-container text-on-secondary-container border border-on-surface ml-1">
                 কথা কই
               </span>
@@ -67,12 +76,29 @@ export default function Home() {
               >
                 Campus Guidelines
               </a>
-              <Link
-                className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors font-bold"
-                to="/login"
-              >
-                Login
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors font-bold"
+                  to="/profile"
+                >
+                  My Profile
+                </Link>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link
+                    className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors font-bold"
+                    to="/login"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    className="hidden sm:inline-block font-label-sm text-xs px-2.5 py-1 bg-secondary-container text-on-surface border border-on-surface rounded-lg shadow-[1px_1px_0px_#1c1b1b] hover:bg-[#ffe087] transition-all font-bold"
+                    to="/register"
+                  >
+                    Register
+                  </Link>
+                </div>
+              )}
             </nav>
 
             {/* Profile Dropdown Container */}
@@ -82,11 +108,13 @@ export default function Home() {
                 type="button"
                 aria-label="User Profile Menu"
                 aria-expanded={profileMenuOpen}
-                onClick={() => setProfileMenuOpen(prev => !prev)}
+                onClick={() => setProfileMenuOpen((prev) => !prev)}
                 className="w-8 h-8 rounded-full bg-primary flex items-center justify-center border border-on-surface shadow-[1px_1px_0px_#1c1b1b] shrink-0 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer"
                 title="Profile & Account Menu"
               >
-                <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
+                <span className="material-symbols-outlined text-on-primary text-[18px]">
+                  person
+                </span>
               </button>
 
               {/* Profile Dropdown Menu */}
@@ -98,48 +126,89 @@ export default function Home() {
                   {/* Account Header Info */}
                   <div className="px-3 py-2 border-b border-on-surface/20 bg-[#FFF5E6]/60">
                     <span className="font-headline-md text-xs font-bold text-on-surface block">
-                      UIU Student Pass
+                      {isAuthenticated ? 'UIU Student Pass' : 'Guest Account'}
                     </span>
                     <span className="font-label-sm text-[10px] text-on-surface-variant block truncate">
-                      2310125@bscse.uiu.ac.bd
+                      {isAuthenticated && user
+                        ? user.email
+                        : 'Not logged in • UIU Only'}
                     </span>
                   </div>
 
                   <div className="py-1">
-                    {/* My Profile */}
-                    <Link
-                      to="/profile"
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center gap-2 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-[16px] text-primary">account_circle</span>
-                      <span className="font-bold">My Profile</span>
-                    </Link>
+                    {isAuthenticated ? (
+                      <>
+                        {/* My Profile */}
+                        <Link
+                          to="/profile"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center gap-2 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[16px] text-primary">
+                            account_circle
+                          </span>
+                          <span className="font-bold">My Profile</span>
+                        </Link>
 
-                    {/* Account / Verification Status */}
-                    <Link
-                      to="/profile"
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center justify-between gap-2 transition-colors border-t border-on-surface/10"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[16px] text-emerald-700">verified</span>
-                        <span>Account / Status</span>
-                      </div>
-                      <span className="font-label-sm text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-600 font-bold">
-                        Verified
-                      </span>
-                    </Link>
+                        {/* Account / Verification Status */}
+                        <Link
+                          to="/profile"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center justify-between gap-2 transition-colors border-t border-on-surface/10"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[16px] text-emerald-700">
+                              verified
+                            </span>
+                            <span>Account / Status</span>
+                          </div>
+                          <span className="font-label-sm text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-600 font-bold">
+                            {user?.status === 'active'
+                              ? 'Verified'
+                              : user?.status}
+                          </span>
+                        </Link>
 
-                    {/* Log Out */}
-                    <Link
-                      to="/login"
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="w-full px-3 py-2 text-left font-label-sm text-xs text-error hover:bg-error-container/40 flex items-center gap-2 transition-colors border-t border-on-surface/10"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">logout</span>
-                      <span className="font-bold">Log Out</span>
-                    </Link>
+                        {/* Log Out */}
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-error hover:bg-error-container/40 flex items-center gap-2 transition-colors border-t border-on-surface/10 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">
+                            logout
+                          </span>
+                          <span className="font-bold">Log Out</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Log In Link */}
+                        <Link
+                          to="/login"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center gap-2 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[16px] text-primary">
+                            login
+                          </span>
+                          <span className="font-bold">
+                            Sign In with UIU Email
+                          </span>
+                        </Link>
+                        {/* Register Link */}
+                        <Link
+                          to="/register"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center gap-2 transition-colors border-t border-on-surface/10"
+                        >
+                          <span className="material-symbols-outlined text-[16px] text-primary">
+                            how_to_reg
+                          </span>
+                          <span className="font-bold">Create Account</span>
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -172,13 +241,36 @@ export default function Home() {
                 aria-label="Retro pixel tea-cup mascot"
               >
                 {/* Steam */}
-                <path d="M22 10V6H24V10H22ZM28 8V4H30V8H28ZM36 10V6H38V10H36Z" fill="#F47721" />
+                <path
+                  d="M22 10V6H24V10H22ZM28 8V4H30V8H28ZM36 10V6H38V10H36Z"
+                  fill="#F47721"
+                />
                 {/* Cup body */}
-                <rect fill="#FFE087" height="26" rx="2" stroke="#1c1b1b" strokeWidth="2" width="30" x="14" y="16" />
+                <rect
+                  fill="#FFE087"
+                  height="26"
+                  rx="2"
+                  stroke="#1c1b1b"
+                  strokeWidth="2"
+                  width="30"
+                  x="14"
+                  y="16"
+                />
                 {/* Pattern lines */}
-                <path d="M14 26H44M14 34H44" stroke="#9C4500" strokeDasharray="2 3" strokeLinecap="round" strokeWidth="2" />
+                <path
+                  d="M14 26H44M14 34H44"
+                  stroke="#9C4500"
+                  strokeDasharray="2 3"
+                  strokeLinecap="round"
+                  strokeWidth="2"
+                />
                 {/* Handle */}
-                <path d="M44 20H49C51.2091 20 53 21.7909 53 24V28C53 30.2091 51.2091 32 49 32H44" stroke="#1c1b1b" strokeLinejoin="round" strokeWidth="2" />
+                <path
+                  d="M44 20H49C51.2091 20 53 21.7909 53 24V28C53 30.2091 51.2091 32 49 32H44"
+                  stroke="#1c1b1b"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                />
                 {/* Eyes */}
                 <rect fill="#1c1b1b" height="4" width="3" x="20" y="24" />
                 <rect fill="#1c1b1b" height="4" width="3" x="35" y="24" />
@@ -186,9 +278,23 @@ export default function Home() {
                 <rect fill="#F47721" height="2" width="3" x="18" y="29" />
                 <rect fill="#F47721" height="2" width="3" x="37" y="29" />
                 {/* Smile */}
-                <path d="M26 31C26 32.5 27.5 34 29 34C30.5 34 32 32.5 32 31" stroke="#1c1b1b" strokeLinecap="round" strokeWidth="2" />
+                <path
+                  d="M26 31C26 32.5 27.5 34 29 34C30.5 34 32 32.5 32 31"
+                  stroke="#1c1b1b"
+                  strokeLinecap="round"
+                  strokeWidth="2"
+                />
                 {/* Saucer */}
-                <rect fill="#FFFFFF" height="4" rx="1" stroke="#1c1b1b" strokeWidth="2" width="38" x="10" y="44" />
+                <rect
+                  fill="#FFFFFF"
+                  height="4"
+                  rx="1"
+                  stroke="#1c1b1b"
+                  strokeWidth="2"
+                  width="38"
+                  x="10"
+                  y="44"
+                />
                 {/* Sparks */}
                 <rect fill="#F47721" height="2" width="2" x="4" y="20" />
                 <rect fill="#9C4500" height="2" width="2" x="52" y="12" />
@@ -212,17 +318,26 @@ export default function Home() {
           </p>
 
           <p className="font-body-md text-body-md text-on-surface-variant max-w-md mx-auto mb-space-sm sm:mb-space-md">
-            Connect with a random UIU peer. Stay 100% anonymous. Zero profile footprints, zero cringe.
+            Connect with a random UIU peer. Stay 100% anonymous. Zero profile
+            footprints, zero cringe.
           </p>
 
           {/* ── Single Prominent CTA Button ──────────────────── */}
           <div className="w-full max-w-xs mx-auto mb-space-sm sm:mb-space-md">
             <Link
               id="start-adda-btn"
-              to="/login"
+              to={
+                isAuthenticated
+                  ? user?.hasProfile
+                    ? '/chat'
+                    : '/choose-nickname'
+                  : '/login'
+              }
               className="group relative w-full inline-flex items-center justify-center gap-space-sm px-space-lg py-3 bg-primary-container text-on-surface border-2 border-on-surface rounded-xl shadow-[4px_4px_0px_#1c1b1b] hover:shadow-[2px_2px_0px_#1c1b1b] hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all select-none"
             >
-              <span className="text-xl" aria-hidden="true">☕</span>
+              <span className="text-xl" aria-hidden="true">
+                ☕
+              </span>
               <span className="font-headline-md text-headline-md font-bold text-on-surface">
                 Start Adda
               </span>
@@ -238,7 +353,8 @@ export default function Home() {
               verified_user
             </span>
             <span className="font-label-sm text-label-sm text-on-surface text-center">
-              🔒 Exclusively for <span className="font-bold">UIU students</span> (UIU email verified) • Real identities are never shown.
+              🔒 Exclusively for <span className="font-bold">UIU students</span>{' '}
+              (UIU email verified) • Real identities are never shown.
             </span>
           </div>
 
@@ -246,11 +362,15 @@ export default function Home() {
           <div className="w-full max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-space-xs sm:gap-space-sm">
             <div className="inline-flex items-center gap-1.5 px-space-sm py-1 bg-surface-container-lowest border-2 border-on-surface rounded-lg shadow-[2px_2px_0px_#1c1b1b]">
               <span className="text-sm">🎲</span>
-              <span className="font-label-sm text-label-sm font-bold text-on-surface">Random fun nicknames</span>
+              <span className="font-label-sm text-label-sm font-bold text-on-surface">
+                Random fun nicknames
+              </span>
             </div>
             <div className="inline-flex items-center gap-1.5 px-space-sm py-1 bg-surface-container-lowest border-2 border-on-surface rounded-lg shadow-[2px_2px_0px_#1c1b1b]">
               <span className="text-sm">⚡</span>
-              <span className="font-label-sm text-label-sm font-bold text-on-surface">Instant skip with</span>
+              <span className="font-label-sm text-label-sm font-bold text-on-surface">
+                Instant skip with
+              </span>
               <span className="font-label-sm text-label-sm px-1 rounded bg-surface-variant border border-on-surface text-on-surface font-mono">
                 'Next' / [ESC]
               </span>
@@ -270,10 +390,12 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-margin lg:px-margin-desktop py-2.5 sm:py-space-sm flex flex-col md:flex-row items-center justify-between gap-space-xs sm:gap-space-sm text-center md:text-left">
           <div className="flex flex-col gap-0.5">
             <p className="font-label-md text-label-md text-on-surface font-bold">
-              KothaKoi (কথা কই) • Built for UIU student addas &amp; friendly chats
+              KothaKoi (কথা কই) • Built for UIU student addas &amp; friendly
+              chats
             </p>
             <p className="font-label-sm text-label-sm text-on-surface-variant">
-              Zero profile footprints. Ephemeral connections exclusive to United International University.
+              Zero profile footprints. Ephemeral connections exclusive to United
+              International University.
             </p>
           </div>
           <div className="flex items-center gap-space-md lg:gap-gutter-desktop flex-wrap justify-center">

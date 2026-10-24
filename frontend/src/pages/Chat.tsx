@@ -21,11 +21,41 @@ interface ChatMessage {
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const INITIAL_MESSAGES: ChatMessage[] = [
-  { id: 1, sender: 'stranger', name: 'Cha-er Cup ☕', time: '10:42 PM', text: 'Ki obostha! Finals season or chill season at UIU?' },
-  { id: 2, sender: 'user',    name: 'You (Midnight Mango)', time: '10:42 PM', text: 'Finals approaching fast 😭 Debugging code and needed a tea break haha.' },
-  { id: 3, sender: 'stranger', name: 'Cha-er Cup ☕', time: '10:43 PM', text: 'Haha same here! CSE or BBA? No names needed!' },
-  { id: 4, sender: 'user',    name: 'You (Midnight Mango)', time: '10:43 PM', text: 'CSE 3rd year 💻 you?' },
-  { id: 5, sender: 'stranger', name: 'Cha-er Cup ☕', time: '10:44 PM', text: 'EEE! Surviving on cha and slides tonight ☕' },
+  {
+    id: 1,
+    sender: 'stranger',
+    name: 'Cha-er Cup ☕',
+    time: '10:42 PM',
+    text: 'Ki obostha! Finals season or chill season at UIU?',
+  },
+  {
+    id: 2,
+    sender: 'user',
+    name: 'You (Midnight Mango)',
+    time: '10:42 PM',
+    text: 'Finals approaching fast 😭 Debugging code and needed a tea break haha.',
+  },
+  {
+    id: 3,
+    sender: 'stranger',
+    name: 'Cha-er Cup ☕',
+    time: '10:43 PM',
+    text: 'Haha same here! CSE or BBA? No names needed!',
+  },
+  {
+    id: 4,
+    sender: 'user',
+    name: 'You (Midnight Mango)',
+    time: '10:43 PM',
+    text: 'CSE 3rd year 💻 you?',
+  },
+  {
+    id: 5,
+    sender: 'stranger',
+    name: 'Cha-er Cup ☕',
+    time: '10:44 PM',
+    text: 'EEE! Surviving on cha and slides tonight ☕',
+  },
 ]
 
 const MOCK_REPLIES = [
@@ -40,7 +70,10 @@ const MOCK_REPLIES = [
 const QUICK_EMOJIS = ['☕', '😭', '🔥']
 
 function nowTime() {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -109,15 +142,15 @@ export default function Chat() {
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   function toggleMic() {
-    setIsMuted(prev => !prev)
+    setIsMuted((prev) => !prev)
   }
 
   function toggleCam() {
-    setIsCamOff(prev => !prev)
+    setIsCamOff((prev) => !prev)
   }
 
   function toggleChat() {
-    setIsChatOpen(prev => {
+    setIsChatOpen((prev) => {
       const next = !prev
       if (next) {
         setTimeout(() => inputRef.current?.focus(), 50)
@@ -138,7 +171,7 @@ export default function Chat() {
       time: nowTime(),
       text,
     }
-    setMessages(prev => [...prev, userMsg])
+    setMessages((prev) => [...prev, userMsg])
     setInput('')
 
     // Simulate stranger typing + response
@@ -154,12 +187,12 @@ export default function Chat() {
         time: nowTime(),
         text: reply,
       }
-      setMessages(prev => [...prev, strangerMsg])
+      setMessages((prev) => [...prev, strangerMsg])
     }, 1200)
   }
 
   function handleQuickEmoji(emoji: string) {
-    setInput(prev => prev + emoji + ' ')
+    setInput((prev) => prev + emoji + ' ')
     inputRef.current?.focus()
   }
 
@@ -171,7 +204,7 @@ export default function Chat() {
       time: '',
       text: 'Connecting to a new UIU peer...',
     }
-    setMessages(prev => [...prev, notice])
+    setMessages((prev) => [...prev, notice])
     setTimeout(() => {
       window.location.reload()
     }, 600)
@@ -198,17 +231,22 @@ export default function Chat() {
 
   return (
     <div className="bg-surface font-body-md text-body-md text-on-surface antialiased h-screen max-h-screen flex flex-col justify-between overflow-hidden select-none">
-
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-[#FFF5E6] border-b-2 border-on-surface shadow-[0_2px_0px_#1c1b1b] shrink-0">
         <div className="h-12 sm:h-13 max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <Link to="/" className="flex items-center gap-1 select-none" data-path="chat-lobby">
+            <Link
+              to="/"
+              className="flex items-center gap-1 select-none"
+              data-path="chat-lobby"
+            >
               <span className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-on-surface">
                 KothaKoi
               </span>
-              <span className="font-headline-md text-lg sm:text-xl font-bold text-primary">.</span>
+              <span className="font-headline-md text-lg sm:text-xl font-bold text-primary">
+                .
+              </span>
               <span className="hidden sm:inline-block font-label-sm text-[11px] px-1.5 py-0.5 rounded bg-secondary-container text-on-secondary-container border border-on-surface ml-1">
                 কথা কই
               </span>
@@ -236,7 +274,9 @@ export default function Chat() {
               </Link>
             </nav>
             <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center border border-on-surface shadow-[1px_1px_0px_#1c1b1b] shrink-0">
-              <span className="material-symbols-outlined text-on-primary text-[16px]">person</span>
+              <span className="material-symbols-outlined text-on-primary text-[16px]">
+                person
+              </span>
             </div>
           </div>
         </div>
@@ -244,10 +284,8 @@ export default function Chat() {
 
       {/* ── Main OmeTV-Style Room Container ───────────────────────────────── */}
       <main className="w-full max-w-7xl mx-auto p-2 sm:p-3 flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
-
         {/* ── Top Area: Two Large Video Panels Side by Side ────────────────── */}
         <section className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-2 relative">
-
           {/* ── Frame 1: Stranger Video (Left) ────────────────────────────── */}
           <div className="relative w-full h-full min-h-0 bg-[#1a1b1e] rounded-xl border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] overflow-hidden flex items-center justify-center group">
             {/* Retro Corner Accents */}
@@ -259,10 +297,23 @@ export default function Chat() {
             {/* Video Canvas Layer */}
             <div className="absolute inset-0 bg-gradient-to-b from-[#222327] to-[#121316] flex flex-col items-center justify-center p-2 overflow-hidden">
               {/* Scanline Grid Watermark */}
-              <svg className="absolute inset-0 w-full h-full opacity-10 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+              <svg
+                className="absolute inset-0 w-full h-full opacity-10 pointer-events-none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
                 <defs>
-                  <pattern height="20" id="chatVideoGrid" patternUnits="userSpaceOnUse" width="20">
-                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#FFFFFF" strokeWidth="0.5" />
+                  <pattern
+                    height="20"
+                    id="chatVideoGrid"
+                    patternUnits="userSpaceOnUse"
+                    width="20"
+                  >
+                    <path
+                      d="M 20 0 L 0 0 0 20"
+                      fill="none"
+                      stroke="#FFFFFF"
+                      strokeWidth="0.5"
+                    />
                   </pattern>
                 </defs>
                 <rect fill="url(#chatVideoGrid)" height="100%" width="100%" />
@@ -279,16 +330,51 @@ export default function Chat() {
                       viewBox="0 0 64 64"
                       xmlns="http://www.w3.org/2000/svg"
                     >
-                      <path d="M22 10V6H24V10H22ZM28 8V4H30V8H28ZM36 10V6H38V10H36Z" fill="#F47721" />
-                      <rect fill="#FFE087" height="26" rx="2" stroke="#1c1b1b" strokeWidth="2" width="30" x="14" y="16" />
-                      <path d="M14 26H44M14 34H44" stroke="#9C4500" strokeDasharray="2 3" strokeLinecap="round" strokeWidth="2" />
-                      <path d="M44 20H49C51.2 20 53 21.8 53 24V28C53 30.2 51.2 32 49 32H44" stroke="#1c1b1b" strokeWidth="2" />
+                      <path
+                        d="M22 10V6H24V10H22ZM28 8V4H30V8H28ZM36 10V6H38V10H36Z"
+                        fill="#F47721"
+                      />
+                      <rect
+                        fill="#FFE087"
+                        height="26"
+                        rx="2"
+                        stroke="#1c1b1b"
+                        strokeWidth="2"
+                        width="30"
+                        x="14"
+                        y="16"
+                      />
+                      <path
+                        d="M14 26H44M14 34H44"
+                        stroke="#9C4500"
+                        strokeDasharray="2 3"
+                        strokeLinecap="round"
+                        strokeWidth="2"
+                      />
+                      <path
+                        d="M44 20H49C51.2 20 53 21.8 53 24V28C53 30.2 51.2 32 49 32H44"
+                        stroke="#1c1b1b"
+                        strokeWidth="2"
+                      />
                       <rect fill="#1c1b1b" height="4" width="3" x="20" y="24" />
                       <rect fill="#1c1b1b" height="4" width="3" x="35" y="24" />
                       <rect fill="#F47721" height="2" width="3" x="18" y="29" />
                       <rect fill="#F47721" height="2" width="3" x="37" y="29" />
-                      <path d="M26 31C26 32.5 27.5 34 29 34C30.5 34 32 32.5 32 31" stroke="#1c1b1b" strokeWidth="2" />
-                      <rect fill="#FFFFFF" height="4" rx="1" stroke="#1c1b1b" strokeWidth="2" width="38" x="10" y="44" />
+                      <path
+                        d="M26 31C26 32.5 27.5 34 29 34C30.5 34 32 32.5 32 31"
+                        stroke="#1c1b1b"
+                        strokeWidth="2"
+                      />
+                      <rect
+                        fill="#FFFFFF"
+                        height="4"
+                        rx="1"
+                        stroke="#1c1b1b"
+                        strokeWidth="2"
+                        width="38"
+                        x="10"
+                        y="44"
+                      />
                     </svg>
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-secondary-container border border-on-surface flex items-center justify-center text-[13px] shadow-[1px_1px_0px_#1c1b1b]">
@@ -302,7 +388,9 @@ export default function Chat() {
                   <span className="w-1 h-3.5 bg-primary-container rounded-full animate-bounce" />
                   <span className="w-1 h-2.5 bg-secondary-container rounded-full animate-pulse" />
                   <span className="w-1 h-4 bg-primary-container rounded-full animate-bounce [animation-delay:150ms]" />
-                  <span className="font-label-sm text-[10px] text-surface-bright ml-1">Speaking...</span>
+                  <span className="font-label-sm text-[10px] text-surface-bright ml-1">
+                    Speaking...
+                  </span>
                 </div>
               </div>
             </div>
@@ -326,8 +414,12 @@ export default function Chat() {
             {/* Stranger Bottom-Left Tag */}
             <div className="absolute bottom-2 left-2 z-30 pointer-events-none">
               <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-surface-container-lowest/90 backdrop-blur-sm border border-on-surface rounded shadow-[1px_1px_0px_#1c1b1b]">
-                <span className="material-symbols-outlined text-[12px] text-emerald-600">wifi</span>
-                <span className="font-label-sm text-[10px] text-on-surface font-semibold">24ms • UIU P2P</span>
+                <span className="material-symbols-outlined text-[12px] text-emerald-600">
+                  wifi
+                </span>
+                <span className="font-label-sm text-[10px] text-on-surface font-semibold">
+                  24ms • UIU P2P
+                </span>
               </div>
             </div>
           </div>
@@ -352,8 +444,12 @@ export default function Chat() {
                 id="self-cam-disabled-overlay"
                 className={`absolute inset-0 bg-[#232326] ${isCamOff ? 'flex' : 'hidden'} flex-col items-center justify-center text-on-primary`}
               >
-                <span className="material-symbols-outlined text-[28px]">videocam_off</span>
-                <span className="font-label-sm text-label-sm mt-1">Camera Off</span>
+                <span className="material-symbols-outlined text-[28px]">
+                  videocam_off
+                </span>
+                <span className="font-label-sm text-label-sm mt-1">
+                  Camera Off
+                </span>
               </div>
             </div>
 
@@ -370,10 +466,12 @@ export default function Chat() {
               <button
                 id="btn-pip-flip"
                 title="Flip mirror"
-                onClick={() => setIsMirrored(prev => !prev)}
+                onClick={() => setIsMirrored((prev) => !prev)}
                 className="p-1 rounded bg-surface-container-lowest/90 text-on-surface hover:bg-surface-container-lowest transition-colors border border-on-surface/50 shadow-[1px_1px_0px_#1c1b1b]"
               >
-                <span className="material-symbols-outlined text-[13px] block">flip_camera_ios</span>
+                <span className="material-symbols-outlined text-[13px] block">
+                  flip_camera_ios
+                </span>
               </button>
             </div>
 
@@ -423,7 +521,9 @@ export default function Chat() {
                   onClick={() => setIsChatOpen(false)}
                   className="w-5 h-5 rounded flex items-center justify-center text-on-surface hover:bg-error-container hover:text-error transition-colors border border-transparent hover:border-on-surface"
                 >
-                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    close
+                  </span>
                 </button>
               </div>
 
@@ -441,7 +541,7 @@ export default function Chat() {
                 </div>
 
                 {/* Messages */}
-                {messages.map(msg => {
+                {messages.map((msg) => {
                   if (msg.sender === 'notice') {
                     return (
                       <div key={msg.id} className="flex justify-center my-0.5">
@@ -454,10 +554,17 @@ export default function Chat() {
 
                   if (msg.sender === 'stranger') {
                     return (
-                      <div key={msg.id} className="flex flex-col items-start max-w-[85%]">
+                      <div
+                        key={msg.id}
+                        className="flex flex-col items-start max-w-[85%]"
+                      >
                         <div className="flex items-center gap-1 mb-0.5">
-                          <span className="font-label-sm text-[10px] font-bold text-primary">{msg.name}</span>
-                          <span className="font-label-sm text-[9px] text-outline">{msg.time}</span>
+                          <span className="font-label-sm text-[10px] font-bold text-primary">
+                            {msg.name}
+                          </span>
+                          <span className="font-label-sm text-[9px] text-outline">
+                            {msg.time}
+                          </span>
                         </div>
                         <div className="bg-surface-container-lowest text-on-surface border border-on-surface px-2.5 py-1 rounded-lg shadow-[1px_1px_0px_#1c1b1b] text-xs leading-snug">
                           {msg.text}
@@ -468,10 +575,17 @@ export default function Chat() {
 
                   // User Message
                   return (
-                    <div key={msg.id} className="flex flex-col items-end self-end max-w-[85%] ml-auto">
+                    <div
+                      key={msg.id}
+                      className="flex flex-col items-end self-end max-w-[85%] ml-auto"
+                    >
                       <div className="flex items-center gap-1 mb-0.5">
-                        <span className="font-label-sm text-[9px] text-outline">{msg.time}</span>
-                        <span className="font-label-sm text-[10px] font-bold text-on-secondary-container">{msg.name}</span>
+                        <span className="font-label-sm text-[9px] text-outline">
+                          {msg.time}
+                        </span>
+                        <span className="font-label-sm text-[10px] font-bold text-on-secondary-container">
+                          {msg.name}
+                        </span>
                       </div>
                       <div className="bg-secondary-container text-on-secondary-container border border-on-surface px-2.5 py-1 rounded-lg shadow-[1px_1px_0px_#1c1b1b] text-xs font-medium leading-snug">
                         {msg.text}
@@ -485,8 +599,12 @@ export default function Chat() {
                   id="typingIndicator"
                   className={`flex items-center gap-1.5 pt-0.5 ${isTyping ? '' : 'hidden'}`}
                 >
-                  <span className="font-label-sm text-[10px] font-bold text-primary">Cha-er Cup</span>
-                  <span className="font-body-sm text-[10px] text-on-surface-variant italic">typing</span>
+                  <span className="font-label-sm text-[10px] font-bold text-primary">
+                    Cha-er Cup
+                  </span>
+                  <span className="font-body-sm text-[10px] text-on-surface-variant italic">
+                    typing
+                  </span>
                   <div className="flex items-center gap-0.5 ml-0.5 bg-surface-container px-1.5 py-0.5 rounded-full border border-on-surface/20">
                     <span className="w-1 h-1 rounded-full bg-primary animate-bounce" />
                     <span className="w-1 h-1 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
@@ -516,7 +634,7 @@ export default function Chat() {
 
                 {/* Quick Emojis */}
                 <div className="hidden sm:flex items-center gap-1">
-                  {QUICK_EMOJIS.map(emoji => (
+                  {QUICK_EMOJIS.map((emoji) => (
                     <button
                       key={emoji}
                       type="button"
@@ -536,12 +654,13 @@ export default function Chat() {
                   className="inline-flex items-center justify-center gap-1 px-2.5 py-1 bg-primary-container text-on-primary-container font-label-sm text-xs uppercase font-bold rounded-lg border border-on-surface shadow-[1px_1px_0px_#1c1b1b] hover:bg-[#ff8638] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all shrink-0"
                 >
                   <span>Send</span>
-                  <span className="material-symbols-outlined text-[13px]">send</span>
+                  <span className="material-symbols-outlined text-[13px]">
+                    send
+                  </span>
                 </button>
               </form>
             </div>
           )}
-
         </section>
 
         {/* ── Compact Bottom Controls Bar Directly Below Video ─────────────── */}
@@ -553,10 +672,14 @@ export default function Chat() {
               onClick={toggleMic}
               className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-container border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] flex items-center gap-1.5 font-label-sm text-xs sm:text-sm text-on-surface hover:bg-secondary-container active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
             >
-              <span className={`material-symbols-outlined text-[16px] ${isMuted ? 'text-error' : 'text-on-surface'}`}>
+              <span
+                className={`material-symbols-outlined text-[16px] ${isMuted ? 'text-error' : 'text-on-surface'}`}
+              >
                 {isMuted ? 'mic_off' : 'mic'}
               </span>
-              <span className="hidden sm:inline font-bold">{isMuted ? 'Unmute' : 'Mute'}</span>
+              <span className="hidden sm:inline font-bold">
+                {isMuted ? 'Unmute' : 'Mute'}
+              </span>
             </button>
 
             <button
@@ -564,21 +687,29 @@ export default function Chat() {
               onClick={toggleCam}
               className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-container border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] flex items-center gap-1.5 font-label-sm text-xs sm:text-sm text-on-surface hover:bg-secondary-container active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
             >
-              <span className={`material-symbols-outlined text-[16px] ${isCamOff ? 'text-error' : 'text-on-surface'}`}>
+              <span
+                className={`material-symbols-outlined text-[16px] ${isCamOff ? 'text-error' : 'text-on-surface'}`}
+              >
                 {isCamOff ? 'videocam_off' : 'videocam'}
               </span>
-              <span className="hidden sm:inline font-bold">{isCamOff ? 'Cam On' : 'Camera'}</span>
+              <span className="hidden sm:inline font-bold">
+                {isCamOff ? 'Cam On' : 'Camera'}
+              </span>
             </button>
 
             <button
               id="btn-toggle-chat"
               onClick={toggleChat}
               className={`px-2.5 sm:px-3 py-1.5 rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] flex items-center gap-1.5 font-label-sm text-xs sm:text-sm ${
-                isChatOpen ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container text-on-surface'
+                isChatOpen
+                  ? 'bg-secondary-container text-on-secondary-container'
+                  : 'bg-surface-container text-on-surface'
               } hover:bg-secondary-container active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all`}
               title={isChatOpen ? 'Close Chat (C)' : 'Open Chat (C)'}
             >
-              <span className="material-symbols-outlined text-[16px]">chat</span>
+              <span className="material-symbols-outlined text-[16px]">
+                chat
+              </span>
               <span className="hidden sm:inline font-bold">Chat</span>
             </button>
           </div>
@@ -602,7 +733,9 @@ export default function Chat() {
               className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-container-lowest text-error border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] font-label-sm text-xs sm:text-sm font-bold flex items-center gap-1 hover:bg-error-container active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
               title="Disconnect"
             >
-              <span className="material-symbols-outlined text-[16px]">call_end</span>
+              <span className="material-symbols-outlined text-[16px]">
+                call_end
+              </span>
               <span className="hidden sm:inline">End</span>
             </button>
           </div>
@@ -614,11 +747,13 @@ export default function Chat() {
               aria-label="Report or Block"
               onClick={(e) => {
                 e.stopPropagation()
-                setReportOpen(prev => !prev)
+                setReportOpen((prev) => !prev)
               }}
               className="px-2 sm:px-2.5 py-1.5 rounded-lg bg-surface-container border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] text-on-surface-variant hover:text-error hover:bg-error-container/40 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none font-label-sm text-xs sm:text-sm font-bold flex items-center gap-1 transition-all"
             >
-              <span className="material-symbols-outlined text-[16px] text-error">flag</span>
+              <span className="material-symbols-outlined text-[16px] text-error">
+                flag
+              </span>
               <span className="hidden sm:inline">Report</span>
             </button>
 
@@ -632,7 +767,9 @@ export default function Chat() {
                 onClick={() => handleReport('Inappropriate Talk')}
                 className="w-full text-left px-3 py-1.5 font-label-sm text-xs text-on-surface hover:bg-surface-container flex items-center gap-2"
               >
-                <span className="material-symbols-outlined text-[16px] text-error">flag</span>
+                <span className="material-symbols-outlined text-[16px] text-error">
+                  flag
+                </span>
                 Inappropriate Talk
               </button>
               <button
@@ -640,7 +777,9 @@ export default function Chat() {
                 onClick={() => handleReport('Inappropriate Video')}
                 className="w-full text-left px-3 py-1.5 font-label-sm text-xs text-on-surface hover:bg-surface-container flex items-center gap-2"
               >
-                <span className="material-symbols-outlined text-[16px] text-error">videocam_off</span>
+                <span className="material-symbols-outlined text-[16px] text-error">
+                  videocam_off
+                </span>
                 Inappropriate Video
               </button>
               <button
@@ -648,7 +787,9 @@ export default function Chat() {
                 onClick={handleBlock}
                 className="w-full text-left px-3 py-1.5 font-label-sm text-xs text-on-surface hover:bg-surface-container flex items-center gap-2 border-t border-on-surface/20"
               >
-                <span className="material-symbols-outlined text-[16px]">person_off</span>
+                <span className="material-symbols-outlined text-[16px]">
+                  person_off
+                </span>
                 Block Student
               </button>
             </div>
@@ -658,22 +799,40 @@ export default function Chat() {
         {/* ── Sub-Footer Info Strip ────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-1 text-on-surface-variant font-label-sm text-[9px] sm:text-[10px] shrink-0">
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <span><kbd className="px-1 py-0.2 bg-surface-container border border-on-surface rounded font-mono font-bold text-on-surface">ESC</kbd> Next</span>
+            <span>
+              <kbd className="px-1 py-0.2 bg-surface-container border border-on-surface rounded font-mono font-bold text-on-surface">
+                ESC
+              </kbd>{' '}
+              Next
+            </span>
             <span>•</span>
-            <span><kbd className="px-1 py-0.2 bg-surface-container border border-on-surface rounded font-mono font-bold text-on-surface">M</kbd> Mute</span>
+            <span>
+              <kbd className="px-1 py-0.2 bg-surface-container border border-on-surface rounded font-mono font-bold text-on-surface">
+                M
+              </kbd>{' '}
+              Mute
+            </span>
             <span>•</span>
-            <span><kbd className="px-1 py-0.2 bg-surface-container border border-on-surface rounded font-mono font-bold text-on-surface">V</kbd> Cam</span>
+            <span>
+              <kbd className="px-1 py-0.2 bg-surface-container border border-on-surface rounded font-mono font-bold text-on-surface">
+                V
+              </kbd>{' '}
+              Cam
+            </span>
             <span>•</span>
-            <span><kbd className="px-1 py-0.2 bg-surface-container border border-on-surface rounded font-mono font-bold text-on-surface">C</kbd> Chat</span>
+            <span>
+              <kbd className="px-1 py-0.2 bg-surface-container border border-on-surface rounded font-mono font-bold text-on-surface">
+                C
+              </kbd>{' '}
+              Chat
+            </span>
           </div>
           <div className="flex items-center gap-1 text-outline">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
             <span>Exclusively for UIU Students • 100% Ephemeral</span>
           </div>
         </div>
-
       </main>
-
     </div>
   )
 }

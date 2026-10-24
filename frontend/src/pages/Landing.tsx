@@ -7,7 +7,8 @@ export default function Landing() {
         <div className={styles.badge}>🎓 UIU Students Only</div>
 
         <h1 className={styles.title}>
-          Meet someone new,<br />
+          Meet someone new,
+          <br />
           <span className={styles.gradient}>anonymously.</span>
         </h1>
 
@@ -20,7 +21,11 @@ export default function Landing() {
           <a href="/chat" className={styles.btnPrimary} id="start-chat-btn">
             Start Chatting
           </a>
-          <a href="#how-it-works" className={styles.btnSecondary} id="how-it-works-link">
+          <a
+            href="#how-it-works"
+            className={styles.btnSecondary}
+            id="how-it-works-link"
+          >
             How it works
           </a>
         </div>

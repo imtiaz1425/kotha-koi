@@ -1,0 +1,224 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  STUDENT @map("student")
+  ADMIN   @map("admin")
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  ACTIVE    @map("active")
+  SUSPENDED @map("suspended")
+  BANNED    @map("banned")
+
+  @@map("user_status")
+}
+
+enum ChatMode {
+  TEXT  @map("text")
+  VIDEO @map("video")
+
+  @@map("chat_mode")
+}
+
+enum EndedReason {
+  SKIP               @map("skip")
+  END                @map("end")
+  DISCONNECT_TIMEOUT @map("disconnect_timeout")
+  MODERATION         @map("moderation")
+  SERVER_RESTART     @map("server_restart")
+
+  @@map("ended_reason")
+}
+
+enum ReportReason {
+  HARASSMENT           @map("harassment")
+  SEXUAL_CONTENT       @map("sexual_content")
+  HATE_SPEECH          @map("hate_speech")
+  SPAM_OR_BOT          @map("spam_or_bot")
+  IMPERSONATION        @map("impersonation")
+  THREATS_OR_SELF_HARM @map("threats_or_self_harm")
+  OTHER                @map("other")
+
+  @@map("report_reason")
+}
+
+enum ReportStatus {
+  OPEN      @map("open")
+  REVIEWING @map("reviewing")
+  ACTIONED  @map("actioned")
+  DISMISSED @map("dismissed")
+
+  @@map("report_status")
+}
+
+enum ModerationActionType {
+  WARN    @map("warn")
+  SUSPEND @map("suspend")
+  BAN     @map("ban")
+  UNBAN   @map("unban")
+  DISMISS @map("dismiss")
+
+  @@map("moderation_action_type")
+}
+
+model User {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email            String      @unique
+  role             UserRole    @default(STUDENT)
+  status           UserStatus  @default(ACTIVE)
+  suspendedUntil   DateTime?   @map("suspended_until") @db.Timestamptz
+  emailVerifiedAt  DateTime?   @map("email_verified_at") @db.Timestamptz
+  termsAcceptedAt  DateTime?   @map("terms_accepted_at") @db.Timestamptz
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+  lastLoginAt      DateTime?   @map("last_login_at") @db.Timestamptz
+
+  profile                    Profile?
+  passwordAuth               UserPassword?       @relation("UserPasswordAuth")
+  sessions                   Session[]
+  blocksInitiated            Block[]             @relation("Blocker")
+  blocksReceived             Block[]             @relation("Blocked")
+  chatSessionsAsA            ChatSession[]       @relation("UserA")
+  chatSessionsAsB            ChatSession[]       @relation("UserB")
+  reportsFiled               Report[]            @relation("Reporter")
+  reportsReceived            Report[]            @relation("Reported")
+  moderationActionsTaken     ModerationAction[]  @relation("AdminAction")
+  moderationActionsReceived  ModerationAction[]  @relation("TargetUser")
+
+  @@map("users")
+}
+
+model UserPassword {
+  userId       String   @id @map("user_id") @db.Uuid
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation("UserPasswordAuth", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_passwords")
+}
+
+model Profile {
+  userId          String   @id @map("user_id") @db.Uuid
+  currentNickname String   @map("current_nickname")
+  avatarPreset    String   @default("mango") @map("avatar_preset")
+  preferences     Json     @default("{}")
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model LoginCode {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email       String
+  codeHash    String    @map("code_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz
+  attempts    Int       @default(0)
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([email, createdAt])
+  @@map("login_codes")
+}
+
+model Session {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  tokenHash  String   @unique @map("token_hash")
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model ChatSession {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mode           ChatMode
+  userAId        String?      @map("user_a_id") @db.Uuid
+  userBId        String?      @map("user_b_id") @db.Uuid
+  startedAt      DateTime     @default(now()) @map("started_at") @db.Timestamptz
+  endedAt        DateTime?    @map("ended_at") @db.Timestamptz
+  endedReason    EndedReason? @map("ended_reason")
+  endedByUserId  String?      @map("ended_by_user_id") @db.Uuid
+
+  userA   User?    @relation("UserA", fields: [userAId], references: [id], onDelete: SetNull)
+  userB   User?    @relation("UserB", fields: [userBId], references: [id], onDelete: SetNull)
+  reports Report[]
+
+  @@index([startedAt])
+  @@index([userAId])
+  @@index([userBId])
+  @@map("chat_sessions")
+}
+
+model Block {
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("blocks")
+}
+
+model Report {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId    String       @map("reporter_id") @db.Uuid
+  reportedId    String       @map("reported_id") @db.Uuid
+  chatSessionId String?      @map("chat_session_id") @db.Uuid
+  reason        ReportReason
+  details       String?      @db.Text
+  evidence      Json?
+  status        ReportStatus @default(OPEN)
+  resolvedBy    String?      @map("resolved_by") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt    DateTime?    @map("resolved_at") @db.Timestamptz
+
+  reporter          User               @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported          User               @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
+  chatSession       ChatSession?       @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
+  moderationActions ModerationAction[]
+
+  @@unique([reporterId, chatSessionId])
+  @@index([status, createdAt])
+  @@index([reportedId])
+  @@map("reports")
+}
+
+model ModerationAction {
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adminId      String               @map("admin_id") @db.Uuid
+  targetUserId String               @map("target_user_id") @db.Uuid
+  reportId     String?              @map("report_id") @db.Uuid
+  action       ModerationActionType
+  reason       String               @db.Text
+  expiresAt    DateTime?            @map("expires_at") @db.Timestamptz
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz
+
+  admin      User    @relation("AdminAction", fields: [adminId], references: [id], onDelete: Cascade)
+  targetUser User    @relation("TargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  report     Report? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([targetUserId, createdAt])
+  @@map("moderation_actions")
+}

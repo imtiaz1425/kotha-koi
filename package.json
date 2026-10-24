@@ -1,0 +1,27 @@
+{
+  "name": "kothakoi",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev:frontend": "npm run --prefix frontend dev",
+    "dev:backend": "npm run --prefix backend dev",
+    "build:shared": "npm run --prefix shared build",
+    "build:frontend": "npm run --prefix frontend build",
+    "build:backend": "npm run --prefix backend build",
+    "build": "npm run build:shared && npm run build:backend && npm run build:frontend",
+    "typecheck:shared": "npm run --prefix shared typecheck",
+    "typecheck:frontend": "npm run --prefix frontend typecheck",
+    "typecheck:backend": "npm run --prefix backend typecheck",
+    "typecheck": "npm run typecheck:shared && npm run typecheck:backend && npm run typecheck:frontend",
+    "lint:frontend": "npm run --prefix frontend lint",
+    "lint:backend": "npm run --prefix backend lint",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "test:shared": "npm run --prefix shared test",
+    "test:frontend": "npm run --prefix frontend test",
+    "test:backend": "npm run --prefix backend test",
+    "test": "npm run test:shared && npm run test:backend && npm run test:frontend"
+  }
+}
