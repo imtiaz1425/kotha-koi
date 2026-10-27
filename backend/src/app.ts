@@ -7,6 +7,7 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler'
 import { requestLogger } from './middleware/request-logger'
 import healthRouter from './routes/health'
 import authRouter from './routes/auth'
+import profileRouter from './routes/profile'
 
 const app = express()
 
@@ -33,6 +34,7 @@ app.use(cookieParser)
 // ---------- Routes ----------
 app.use('/api', healthRouter)
 app.use('/api/auth', authRouter)
+app.use('/api/profile', profileRouter)
 
 // ---------- 404 & Centralized Error Handling ----------
 app.use(notFoundHandler)

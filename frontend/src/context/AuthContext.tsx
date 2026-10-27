@@ -1,9 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-} from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useInRouterContext, useNavigate } from 'react-router-dom'
 import { apiClient, ApiClient, ApiClientError } from '../api/client'
 import { AuthUser, AuthStatus, AuthContextValue } from '../types/auth'

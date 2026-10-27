@@ -6,6 +6,7 @@ export interface AuthUser {
   role: 'student' | 'admin' | string
   status: 'active' | 'suspended' | 'banned' | string
   hasProfile: boolean
+  name?: string | null
 }
 
 export type AuthStatus =

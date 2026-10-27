@@ -7,6 +7,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context'
+import { OnlineBadge } from '../components/OnlineBadge'
 
 export default function Home() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
@@ -51,9 +52,10 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Centre badge: UIU only */}
-          <div className="hidden md:flex items-center">
-            <div className="inline-flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
+          {/* Centre badge: UIU only & Online Count */}
+          <div className="flex items-center gap-2">
+            <OnlineBadge />
+            <div className="hidden md:inline-flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
               <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse" />
               <span className="font-label-sm text-label-sm text-on-surface font-bold tracking-wide">
                 🎓 UIU Students Only • 100% Anonymous

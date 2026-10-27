@@ -13,12 +13,18 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',
     port: 3000,
     proxy: {
       // Proxy all /api requests to the backend
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+      },
+      // Proxy all /socket.io WebSocket requests to the backend
+      '/socket.io': {
+        target: 'http://localhost:5000',
+        ws: true,
       },
     },
   },

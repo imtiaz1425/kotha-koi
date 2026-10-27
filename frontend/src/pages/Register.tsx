@@ -5,6 +5,7 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiClient, ApiClientError } from '../api/client'
+import { OnlineBadge } from '../components/OnlineBadge'
 import type { AuthUser } from '../types/auth'
 
 export default function Register() {
@@ -16,6 +17,7 @@ export default function Register() {
   const [isEmailVerified, setIsEmailVerified] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [name, setName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [termsAccepted, setTermsAccepted] = useState(false)
@@ -50,8 +52,7 @@ export default function Register() {
           'Please enter a complete UIU email address (e.g. 2310125@bscse.uiu.ac.bd).',
       }
     }
-    const uiuEmailRegex =
-      /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9-]+\.)*uiu\.ac\.bd$/i
+    const uiuEmailRegex = /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9-]+\.)*uiu\.ac\.bd$/i
     if (!uiuEmailRegex.test(trimmed)) {
       return {
         valid: false,
@@ -186,6 +187,7 @@ export default function Register() {
         {
           email: email.trim().toLowerCase(),
           password,
+          name: name.trim() || undefined,
         }
       )
 
@@ -247,9 +249,10 @@ export default function Register() {
             </span>
           </Link>
 
-          {/* Badge */}
-          <div className="hidden sm:flex items-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
+          {/* Badge & Online Counter */}
+          <div className="flex items-center gap-2">
+            <OnlineBadge />
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
               <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse" />
               <span className="font-label-sm text-xs text-on-surface font-bold tracking-wide">
                 🎓 UIU Students Only • 100% Anonymous
@@ -288,7 +291,11 @@ export default function Register() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-secondary-container rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] p-2 flex items-center justify-center shrink-0">
-                  <span className="text-2xl" role="img" aria-label="student cap">
+                  <span
+                    className="text-2xl"
+                    role="img"
+                    aria-label="student cap"
+                  >
                     🎓
                   </span>
                 </div>
@@ -458,7 +465,9 @@ export default function Register() {
                       required
                       value={otpCode}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+                        const val = e.target.value
+                          .replace(/\D/g, '')
+                          .slice(0, 6)
                         setOtpCode(val)
                         if (errorMessage) setErrorMessage('')
                       }}
@@ -499,6 +508,40 @@ export default function Register() {
               {/* ── Password Fields (Revealed directly below success indicator) ── */}
               {isEmailVerified && (
                 <div className="space-y-3 pt-1 animate-in fade-in duration-200">
+                  {/* Private Profile Name */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label
+                        htmlFor="regName"
+                        className="block font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface"
+                      >
+                        Private Profile Name (Account Owner)
+                      </label>
+                      <span className="font-label-sm text-[10px] text-primary font-bold">
+                        🔒 Confidential
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        id="regName"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Tanvir Ahmed (Visible only to you)"
+                        maxLength={60}
+                        className="w-full px-3 py-2 bg-surface text-on-surface font-body-md text-sm rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:bg-white focus:outline-none focus:border-primary-container transition-all"
+                      />
+                      <span className="absolute right-3 top-2.5 material-symbols-outlined text-outline text-[18px] pointer-events-none">
+                        badge
+                      </span>
+                    </div>
+                    <p className="mt-1 font-body-sm text-[11px] text-on-surface-variant">
+                      Private account name. Displayed only to you on your
+                      profile. <strong>Never</strong> shared with chat partners
+                      or used as a chat identity.
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Create Password */}
                     <div>

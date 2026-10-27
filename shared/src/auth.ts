@@ -36,6 +36,12 @@ export const setPasswordSchema = z.object({
     .string()
     .min(8, 'Password must be at least 8 characters long')
     .max(128, 'Password must not exceed 128 characters'),
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Name must be at least 2 characters long')
+    .max(60, 'Name must not exceed 60 characters')
+    .optional(),
 })
 
 export type SetPasswordInput = z.infer<typeof setPasswordSchema>
@@ -49,3 +55,14 @@ export const passwordLoginSchema = z.object({
 })
 
 export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Please enter your current password'),
+  newPassword: z
+    .string()
+    .min(8, 'New password must be at least 8 characters long')
+    .max(128, 'New password must not exceed 128 characters'),
+})
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
+

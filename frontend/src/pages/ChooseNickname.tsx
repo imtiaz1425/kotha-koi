@@ -4,8 +4,11 @@
  * Allows generating or shuffling temporary aliases while strictly
  * preserving real-name privacy.
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiClient, ApiClientError } from '../api/client'
+import { useAuth } from '../context/auth-context'
+import { OnlineBadge } from '../components/OnlineBadge'
 
 interface NicknameOption {
   name: string
@@ -79,16 +82,47 @@ const NICKNAMES: NicknameOption[] = [
 
 export default function ChooseNickname() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [customName, setCustomName] = useState('')
   const [isCustom, setIsCustom] = useState(false)
   const [isShuffling, setIsShuffling] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const userInitials = user?.name
+    ? user.name.slice(0, 2).toUpperCase()
+    : user?.email
+      ? user.email.slice(0, 2).toUpperCase()
+      : 'UIU'
 
   const activeOption = NICKNAMES[selectedIndex]
   const activeNickname = isCustom
     ? customName.trim() || 'Anonymous UIUian'
     : activeOption.name
   const activeEmoji = isCustom ? '🎭' : activeOption.emoji
+
+  useEffect(() => {
+    apiClient
+      .get<{ ok: boolean; nickname?: string; avatarPreset?: string }>(
+        '/profile'
+      )
+      .then((res) => {
+        if (res?.nickname) {
+          const index = NICKNAMES.findIndex(
+            (n) => n.name.toLowerCase() === res.nickname?.toLowerCase()
+          )
+          if (index !== -1) {
+            setSelectedIndex(index)
+            setIsCustom(false)
+          } else {
+            setCustomName(res.nickname)
+            setIsCustom(true)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   function handleShuffle() {
     setIsCustom(false)
@@ -104,9 +138,26 @@ export default function ChooseNickname() {
     setSelectedIndex(index)
   }
 
-  function handleStartAdda() {
-    // Navigate into the live chat room
-    navigate('/chat')
+  async function handleStartAdda() {
+    setIsSaving(true)
+    setError('')
+    try {
+      await apiClient.put('/profile', {
+        nickname: activeNickname,
+        avatarPreset: isCustom
+          ? 'custom'
+          : activeOption.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      })
+      navigate('/chat', { state: { nickname: activeNickname } })
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError) {
+        setError(err.message)
+      } else {
+        setError('Failed to save nickname. Please try again.')
+      }
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -127,9 +178,10 @@ export default function ChooseNickname() {
             </span>
           </Link>
 
-          {/* User Flow Badge */}
-          <div className="hidden md:flex items-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
+          {/* User Flow Badge & Online Counter */}
+          <div className="flex items-center gap-2">
+            <OnlineBadge />
+            <div className="hidden md:inline-flex items-center gap-2 px-3 py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
               <span className="font-label-sm text-xs text-on-surface-variant">
                 Step 2 of 2:
               </span>
@@ -145,8 +197,8 @@ export default function ChooseNickname() {
               to="/profile"
               className="flex items-center gap-1.5 font-label-sm text-xs font-bold text-on-surface hover:text-primary transition-colors"
             >
-              <div className="w-6 h-6 rounded-full bg-secondary-container border border-on-surface flex items-center justify-center text-[11px]">
-                TA
+              <div className="w-6 h-6 rounded-full bg-secondary-container border border-on-surface flex items-center justify-center text-[11px] font-bold">
+                {userInitials}
               </div>
               <span className="hidden sm:inline">My Profile</span>
             </Link>
@@ -167,7 +219,9 @@ export default function ChooseNickname() {
             <div className="text-center mb-5">
               <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-secondary-container text-on-surface border border-on-surface font-label-sm text-[11px] font-bold mb-2 shadow-[1px_1px_0px_#1c1b1b]">
                 <span>
-                  Prototype Mode: Demo Student (Tanvir Ahmed • 2310125)
+                  {user?.email
+                    ? `Student Session: ${user.email.split('@')[0]}`
+                    : 'Active Student Session'}
                 </span>
                 <span className="material-symbols-outlined text-[13px] text-emerald-800">
                   verified
@@ -193,9 +247,10 @@ export default function ChooseNickname() {
                 <strong className="text-primary font-bold">
                   Real identity never shown:
                 </strong>{' '}
-                Your real name (<em>Tanvir Ahmed</em>), Student ID (
-                <em>2310125</em>), and email are kept private. UIU peers in the
-                chat will ONLY see your temporary nickname below.
+                Your private Profile Name{user?.name ? ` (${user.name})` : ''},
+                Student ID, and institutional email are strictly confidential.
+                UIU peers in the chat will ONLY see your temporary nickname
+                below.
               </p>
             </div>
 
@@ -303,17 +358,37 @@ export default function ChooseNickname() {
               </div>
             </div>
 
+            {/* Error Banner */}
+            {error && (
+              <div
+                id="nicknameError"
+                className="mb-4 p-3 bg-error-container border-2 border-on-surface rounded-xl shadow-[2px_2px_0px_#1c1b1b] flex items-center gap-2 text-on-error-container text-xs font-bold"
+              >
+                <span className="material-symbols-outlined text-[16px] text-error">
+                  error
+                </span>
+                <span>{error}</span>
+              </div>
+            )}
+
             {/* ── Start Adda CTA Button ────────────────────────────── */}
             <button
               id="start-adda-btn"
               type="button"
+              disabled={isSaving}
               onClick={handleStartAdda}
-              className="w-full py-3.5 bg-primary-container text-on-surface font-headline-md text-base sm:text-lg font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[4px_4px_0px_#1c1b1b] hover:bg-[#ff8638] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-2"
+              className={`w-full py-3.5 bg-primary-container text-on-surface font-headline-md text-base sm:text-lg font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[4px_4px_0px_#1c1b1b] hover:bg-[#ff8638] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-2 ${
+                isSaving ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
             >
               <span className="text-xl">☕</span>
-              <span>Start Adda as {activeNickname}</span>
+              <span>
+                {isSaving
+                  ? 'Saving persona...'
+                  : `Start Adda as ${activeNickname}`}
+              </span>
               <span className="material-symbols-outlined text-[20px]">
-                arrow_forward
+                {isSaving ? 'sync' : 'arrow_forward'}
               </span>
             </button>
 

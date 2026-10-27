@@ -530,16 +530,17 @@ describe('TASK-AUTH-06 — Connect Existing UI to Real Authentication', () => {
     })
 
     it('session refresh: GET /api/auth/me returning 401 results in UNAUTHENTICATED error and unauthenticated state', async () => {
-      globalThis.fetch = vi.fn().mockImplementation(async () =>
-        new Response(
-          JSON.stringify({
-            error: {
-              code: 'UNAUTHENTICATED',
-              message: 'Authentication required. Please log in.',
-            },
-          }),
-          { status: 401, headers: { 'Content-Type': 'application/json' } }
-        )
+      globalThis.fetch = vi.fn().mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: {
+                code: 'UNAUTHENTICATED',
+                message: 'Authentication required. Please log in.',
+              },
+            }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } }
+          )
       )
 
       const client = new ApiClient('/api')

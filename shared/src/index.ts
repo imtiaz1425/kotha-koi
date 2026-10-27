@@ -13,6 +13,8 @@ import {
   type SetPasswordInput,
   passwordLoginSchema,
   type PasswordLoginInput,
+  changePasswordSchema,
+  type ChangePasswordInput,
 } from './auth'
 
 export {
@@ -28,4 +30,7 @@ export {
   type SetPasswordInput,
   passwordLoginSchema,
   type PasswordLoginInput,
+  changePasswordSchema,
+  type ChangePasswordInput,
 }
+

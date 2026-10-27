@@ -4,6 +4,7 @@ import {
   verifyEmailCodeSchema,
   setPasswordSchema,
   passwordLoginSchema,
+  changePasswordSchema,
 } from '@kothakoi/shared'
 import prisma from '../db'
 import { AppError } from '../errors/app-error'
@@ -122,6 +123,14 @@ router.post(
         },
       })
 
+      // Update private profile name if provided during registration
+      if (input.name) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { name: input.name },
+        })
+      }
+
       // Clear any session cookie so user logs in afresh on Login screen
       const rawToken = req.cookies?.[SESSION_COOKIE_NAME]
       if (rawToken) {
@@ -132,6 +141,59 @@ router.post(
       res.status(200).json({
         ok: true,
         message: 'Account password saved successfully.',
+      })
+    } catch (err) {
+      next(err)
+    }
+  }
+)
+
+/**
+ * POST /api/auth/change-password
+ * Allows an authenticated student to update their password.
+ */
+router.post(
+  '/change-password',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const input = changePasswordSchema.parse(req.body)
+      const userId = req.user!.id
+
+      const userPassword = await prisma.userPassword.findUnique({
+        where: { userId },
+      })
+
+      if (!userPassword) {
+        throw new AppError(
+          400,
+          'VALIDATION_FAILED',
+          'Account password is not configured.'
+        )
+      }
+
+      const isValid = verifyPassword(
+        input.currentPassword,
+        userPassword.passwordHash
+      )
+
+      if (!isValid) {
+        throw new AppError(
+          400,
+          'VALIDATION_FAILED',
+          'Current password is incorrect.'
+        )
+      }
+
+      const passwordHash = hashPassword(input.newPassword)
+      await prisma.userPassword.update({
+        where: { userId },
+        data: { passwordHash },
+      })
+
+      res.status(200).json({
+        ok: true,
+        message: 'Password updated successfully.',
       })
     } catch (err) {
       next(err)
@@ -219,6 +281,7 @@ router.post(
         user: {
           id: user.id,
           email: user.email,
+          name: user.name || null,
           role: user.role.toLowerCase(),
           status: user.status.toLowerCase(),
           hasProfile: Boolean(user.profile),
@@ -278,6 +341,7 @@ router.get(
         user: {
           id: user.id,
           email: user.email,
+          name: user.name || null,
           role: user.role.toLowerCase(),
           status: user.status.toLowerCase(),
           hasProfile: Boolean(user.profile),
@@ -290,4 +354,3 @@ router.get(
 )
 
 export default router
-

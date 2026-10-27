@@ -6,6 +6,7 @@
  */
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { OnlineBadge } from '../components/OnlineBadge'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -213,8 +214,9 @@ export default function Video() {
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center">
-            <div className="inline-flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
+          <div className="flex items-center gap-2">
+            <OnlineBadge />
+            <div className="hidden md:inline-flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
               <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse" />
               <span className="font-label-sm text-label-sm text-on-surface font-bold tracking-wide">
                 🎓 Verified Campus Network • Anonymous

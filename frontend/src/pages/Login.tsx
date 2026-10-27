@@ -6,6 +6,7 @@ import { useState, FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { apiClient, ApiClientError } from '../api/client'
 import { useAuth } from '../context'
+import { OnlineBadge } from '../components/OnlineBadge'
 import type { AuthUser } from '../types/auth'
 
 export default function Login() {
@@ -32,7 +33,9 @@ export default function Login() {
 
     const cleanIdentifier = identifier.trim()
     if (!cleanIdentifier) {
-      setErrorMessage('Please enter your UIU Student ID or institutional email.')
+      setErrorMessage(
+        'Please enter your UIU Student ID or institutional email.'
+      )
       return
     }
 
@@ -76,7 +79,6 @@ export default function Login() {
     }
   }
 
-
   return (
     <div className="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between overflow-x-hidden">
       {/* ── Header ─────────────────────────────────────────────── */}
@@ -95,9 +97,10 @@ export default function Login() {
             </span>
           </Link>
 
-          {/* Badge: UIU only */}
-          <div className="hidden sm:flex items-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
+          {/* Badge: UIU only & Online Count */}
+          <div className="flex items-center gap-2">
+            <OnlineBadge />
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container-lowest border-2 border-on-surface rounded-full shadow-[2px_2px_0px_#1c1b1b]">
               <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse" />
               <span className="font-label-sm text-xs text-on-surface font-bold tracking-wide">
                 🎓 UIU Students Only • 100% Anonymous
@@ -309,7 +312,9 @@ export default function Login() {
                     type="button"
                     id="toggle-password-visibility"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={
+                      showPassword ? 'Hide password' : 'Show password'
+                    }
                     title={showPassword ? 'Hide password' : 'Show password'}
                     className="absolute right-2.5 top-2.5 p-1 text-on-surface-variant hover:text-on-surface focus:outline-none"
                   >
@@ -392,7 +397,9 @@ export default function Login() {
               className="absolute top-4 right-4 text-on-surface hover:text-error transition-colors p-1"
               aria-label="Close modal"
             >
-              <span className="material-symbols-outlined text-[20px]">close</span>
+              <span className="material-symbols-outlined text-[20px]">
+                close
+              </span>
             </button>
 
             {/* Modal Header */}
@@ -425,10 +432,13 @@ export default function Login() {
                   Backend Feature Pending
                 </p>
                 <p className="font-body-sm text-xs leading-relaxed text-on-surface">
-                  Password recovery is not yet available. The password authentication backend still needs implementation before automated resets can be dispatched.
+                  Password recovery is not yet available. The password
+                  authentication backend still needs implementation before
+                  automated resets can be dispatched.
                 </p>
                 <p className="font-body-sm text-[11px] text-on-surface-variant">
-                  No reset email has been sent. If you need a new UIU account or verification, please visit the registration page.
+                  No reset email has been sent. If you need a new UIU account or
+                  verification, please visit the registration page.
                 </p>
               </div>
 

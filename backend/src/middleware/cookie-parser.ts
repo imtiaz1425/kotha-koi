@@ -1,18 +1,13 @@
 import { Request, Response, NextFunction } from 'express'
 
 /**
- * Lightweight, zero-dependency cookie parsing middleware.
- * Parses raw Cookie request headers into a key-value record on req.cookies.
+ * Parses raw Cookie header string into a key-value record.
  */
-export function cookieParser(
-  req: Request,
-  _res: Response,
-  next: NextFunction
-): void {
-  const cookieHeader = req.headers.cookie
+export function parseCookieHeader(
+  cookieHeader?: string
+): Record<string, string> {
   if (!cookieHeader) {
-    req.cookies = {}
-    return next()
+    return {}
   }
 
   const cookies: Record<string, string> = {}
@@ -34,6 +29,18 @@ export function cookieParser(
     }
   }
 
-  req.cookies = cookies
+  return cookies
+}
+
+/**
+ * Lightweight, zero-dependency cookie parsing middleware.
+ * Parses raw Cookie request headers into a key-value record on req.cookies.
+ */
+export function cookieParser(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void {
+  req.cookies = parseCookieHeader(req.headers.cookie)
   next()
 }

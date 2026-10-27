@@ -82,11 +82,11 @@ All state-changing and resource-fetching REST endpoints under `/api` return a un
 
 | Event Name | Proposed Payload Shape | Validation & Behavior | Status |
 |---|---|---|---|
-| `queue:join` | `{ mode: 'text' }` | `mode` must be `'text'` for Release 1. User must be in `IDLE` state; returns `ALREADY_BUSY` if already queued/matched. Server responds via acknowledgement callback: `{ ok: true }` or socket `error`. | **Proposed** (Phasing aligned with OD-02) |
+| `queue:join` | `{ mode?: 'text', nickname?: string, avatarPreset?: string }` | `mode` must be `'text'` for Release 1. Optional `nickname` (2–20 chars) and `avatarPreset` specify temporary chat identity for the session. User must be in `IDLE` state; returns `ALREADY_BUSY` if already queued/matched. Server responds via acknowledgement callback: `{ ok: true }` or socket `error`. | **Proposed** (Phasing aligned with OD-02) |
 | `queue:leave` | `{}` | Removes user from the waiting queue and resets state to `IDLE`. Acknowledges with `{ ok: true }`. | **Proposed** |
 | `chat:message` | `{ sessionId: string, clientMsgId: string, text: string }` | `sessionId`: UUID string of active room.<br>`clientMsgId`: client-generated UUID for optimistic UI/deduplication.<br>`text`: 1–1000 Unicode code points (trimmed).<br>Server verifies caller is a participant, relays to partner, and acknowledges sender with `{ ok: true, messageId: string, at: string }`. | **Proposed** |
 | `chat:typing` | `{ sessionId: string, isTyping: boolean }` | Rate-limited to max 1 event per second. Relays typing status to the partner. | **Proposed** |
-| `chat:skip` | `{ sessionId: string }` | Requests immediate partner skip. Initiator is re-queued into matchmaking; partner receives `chat:ended` (`reason: 'partner_skipped'`). Pair enters cooldown map. | **Proposed** |
+| `chat:skip` | `{ sessionId: string }` | Requests immediate partner skip. Initiator is re-queued into matchmaking; partner receives `chat:ended` (`reason: 'partner_skipped'`). Repeat matches are permitted; explicit blocks and active matches are preserved. | **Proposed** |
 | `chat:end` | `{ sessionId: string }` | Terminates chat room cleanly. Both users return to `IDLE` state. Partner receives `chat:ended` (`reason: 'partner_left'`). | **Proposed** |
 | `rtc:offer` | `{ sessionId: string, sdp: string }` | **Deferred to Release 2.** WebRTC SDP offer. | **Deferred (OD-02)** |
 | `rtc:answer` | `{ sessionId: string, sdp: string }` | **Deferred to Release 2.** WebRTC SDP answer. | **Deferred (OD-02)** |
@@ -96,13 +96,14 @@ All state-changing and resource-fetching REST endpoints under `/api` return a un
 
 | Event Name | Proposed Payload Shape | Trigger & Context | Status |
 |---|---|---|---|
-| `session:state` | `{ state: 'IDLE' \| 'QUEUED' \| 'IN_CHAT', session?: { sessionId: string, mode: 'text', partner: { nickname: string, avatarPreset?: string } }, recent?: string[] }` | Sent immediately upon socket connection or reconnection. Informs client of restored state and active room details. | **Proposed** |
+| `session:state` | `{ state: 'IDLE' \| 'QUEUED' \| 'IN_CHAT', session?: { sessionId: string, mode: 'text', partner: { nickname: string, avatarPreset?: string }, self?: { nickname: string, avatarPreset?: string } }, recent?: string[] }` | Sent immediately upon socket connection or reconnection. Informs client of restored state and active room details, including local temporary chat identity. | **Proposed** |
 | `queue:waiting` | `{}` | Emitted when user is successfully placed in the FIFO matchmaking queue. UI shows waiting spinner/counter. | **Proposed** |
-| `match:found` | `{ sessionId: string, mode: 'text', partner: { nickname: string, avatarPreset?: string } }` | Emitted simultaneously to both paired users upon atomic pairing. **Strict Privacy:** Contains no emails, user IDs, or student IDs (NFR-05, OD-05). | **Proposed** |
+| `match:found` | `{ sessionId: string, mode: 'text', partner: { nickname: string, avatarPreset?: string }, self?: { nickname: string, avatarPreset?: string } }` | Emitted simultaneously to both paired users upon atomic pairing. Includes temporary chat identities. **Strict Privacy:** Contains no private Profile Name, emails, user IDs, or student IDs (NFR-05, OD-05). | **Proposed** |
 | `chat:message` | `{ sessionId: string, messageId: string, text: string, at: string }` | Relayed in-order to the partner. `at` is an ISO-8601 server timestamp. Rendered as plain text to prevent XSS. | **Proposed** |
 | `chat:typing` | `{ sessionId: string, isTyping: boolean }` | Relayed to partner to display the real-time typing indicator. Auto-cleared after 3 seconds. | **Proposed** |
 | `chat:partner_status` | `{ sessionId: string, status: 'reconnecting' \| 'back' }` | Emitted when partner socket disconnects unexpectedly. Initiates 15-second grace period banner in UI (FR-15). | **Proposed** |
 | `chat:ended` | `{ sessionId: string, reason: 'partner_skipped' \| 'partner_left' \| 'partner_disconnected' \| 'you_ended' \| 'moderation' }` | Room terminated. Notifies user of termination reason and unlocks "Find Next" navigation. | **Proposed** |
+| `online:count` | `{ count: number }` | Emitted globally upon socket connection, disconnection, or state transition to broadcast the total count of authenticated users with active socket connections. Strictly deduplicated per user and contains no user PII (NFR-05). | **Proposed** |
 | `error` | `{ code: string, message: string }` | Emitted on socket-level errors (e.g. `RATE_LIMITED`, `FORBIDDEN`, `ALREADY_BUSY`, `VALIDATION_FAILED`). | **Proposed** |
 
 ---
@@ -112,12 +113,15 @@ All state-changing and resource-fetching REST endpoints under `/api` return a un
 | Method & Route | Request Body / Query | Success Response (HTTP 200/204) | Potential Errors | Governing Requirement |
 |---|---|---|---|---|
 | `GET /api/health` | None | `{ "status": "ok" }` | None | Existing implementation |
+| `GET /api/stats/online` | None | `{ "ok": true, "count": number }` | None | Returns total count of active authenticated socket connections. |
 | `POST /api/auth/request-code` | `{ "email": string, "acceptTerms"?: boolean }` | `{ "ok": true }` (uniform response) | 400 (`EMAIL_DOMAIN_NOT_ALLOWED`, `VALIDATION_FAILED`), 429 (`RATE_LIMITED`) | FR-01, FR-02, OD-01, OD-06 |
-| `POST /api/auth/verify-code` | `{ "email": string, "code": string }` | `{ "user": { "id": string, "role": "student" \| "admin", "hasProfile": boolean } }` + `Set-Cookie` | 400 (`INVALID_CODE`), 403 (`ACCOUNT_UNAVAILABLE`), 429 (`RATE_LIMITED`) | FR-03, FR-06, OD-01 |
+| `POST /api/auth/verify-code` | `{ "email": string, "code": string }` | `{ "user": { "id": string, "role": "student" \| "admin", "hasProfile": boolean, "name"?: string } }` + `Set-Cookie` | 400 (`INVALID_CODE`), 403 (`ACCOUNT_UNAVAILABLE`), 429 (`RATE_LIMITED`) | FR-03, FR-06, OD-01 |
+| `POST /api/auth/set-password` | `{ "email": string, "password": string, "name"?: string }` | `{ "ok": true }` | 400 (`VALIDATION_FAILED`) | Password setup with private Profile Name |
+| `POST /api/auth/change-password` | `{ "currentPassword": string, "newPassword": string }` | `{ "ok": true }` | 400 (`VALIDATION_FAILED`, `INVALID_CREDENTIALS`), 401 (`UNAUTHENTICATED`) | Authenticated password change |
 | `POST /api/auth/logout` | None | `204 No Content` + clear cookie | 401 (`UNAUTHENTICATED`) | FR-04 |
-| `GET /api/auth/me` | None (reads cookie) | `{ "id": string, "email": string, "role": string, "status": string, "hasProfile": boolean }` | 401 (`UNAUTHENTICATED`), 403 (`ACCOUNT_UNAVAILABLE`) | FR-04, FR-05 |
-| `GET /api/profile` | None (reads cookie) | `{ "nickname": string, "avatarPreset": string, "preferences": object }` | 401 (`UNAUTHENTICATED`) | FR-07, FR-08 |
-| `PUT /api/profile` | `{ "nickname"?: string, "avatarPreset"?: string, "preferences"?: object }` | `{ "nickname": string, "avatarPreset": string, "preferences": object }` | 400 (`VALIDATION_FAILED`), 401 (`UNAUTHENTICATED`) | FR-07, FR-08, OD-07 |
+| `GET /api/auth/me` | None (reads cookie) | `{ "id": string, "email": string, "role": string, "status": string, "hasProfile": boolean, "name"?: string }` | 401 (`UNAUTHENTICATED`), 403 (`ACCOUNT_UNAVAILABLE`) | FR-04, FR-05 |
+| `GET /api/profile` | None (reads cookie) | `{ "ok": true, "profile": { "name": string, "nickname": string, "avatarPreset": string, "preferences": object } }` | 401 (`UNAUTHENTICATED`) | FR-07, FR-08 |
+| `PUT /api/profile` | `{ "name"?: string, "nickname"?: string, "avatarPreset"?: string, "preferences"?: object }` | `{ "ok": true, "name": string, "nickname": string, "avatarPreset": string, "preferences": object }` | 400 (`VALIDATION_FAILED`), 401 (`UNAUTHENTICATED`) | FR-07, FR-08, OD-07 |
 | `DELETE /api/account` | None (reads cookie) | `204 No Content` | 401 (`UNAUTHENTICATED`) | FR-09, OD-12 |
 | `POST /api/blocks` | `{ "sessionId": string }` | `204 No Content` | 401, 403 (`NOT_IN_SESSION`) | FR-18, OD-11 |
 | `POST /api/reports` | `{ "sessionId": string, "reason": string, "details"?: string }` | `{ "reportId": string }` | 400, 401, 403 (`NOT_IN_SESSION`), 409 (`CONFLICT`), 429 | FR-17, OD-11 |
@@ -153,7 +157,7 @@ All state-changing and resource-fetching REST endpoints under `/api` return a un
 2. **OD-06 — Allowed Email Domains Whitelist:**
    - Active subdomains beyond `uiu.ac.bd` (e.g. `bscse.uiu.ac.bd`, `bba.uiu.ac.bd`) need verification before finalizing `ALLOWED_EMAIL_DOMAINS` parsing.
 3. **OD-07 — Nickname & Profile Validation Constraints:**
-   - Maximum character length boundary (UI currently allows 24 chars; specification proposes 20).
+   - Maximum character length boundary (UI currently allows 24 chars; specification proposes 20; database check enforces 2-20 chars).
    - Character whitelist for Bengali script and emoji code points.
    - Exact structure and naming for avatar presets (`avatarPreset` vs `avatar_preset`).
 4. **OD-08 — Chat UI Integration:**
@@ -164,5 +168,5 @@ All state-changing and resource-fetching REST endpoints under `/api` return a un
 6. **OD-12 — Retention Job & Pruning Cycles:**
    - Pruning duration for completed chat session metadata and resolved abuse report evidence snapshots.
 7. **OD-13 — Matching Queue Tuning:**
-   - Cooldown window duration preventing rematch between previous partners (proposed 10 minutes).
+   - Repeat matches: Product requirements explicitly permit repeat matches so users may rematch with previous partners if available in the queue. Recent-partner cooldown has been removed while preserving explicit block exclusions, active session protections, and self-matching prevention.
    - Empty queue timeout or "nobody online" UX state trigger threshold.

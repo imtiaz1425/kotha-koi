@@ -12,11 +12,13 @@ describe('Password Authentication Endpoints (POST /set-password, POST /login)', 
 
   beforeAll(async () => {
     await prisma.$connect()
-    // Clean up test user if exists
+    // Clean up test user and loginCode if exists
+    await prisma.loginCode.deleteMany({ where: { email: testEmail } })
     await prisma.user.deleteMany({ where: { email: testEmail } })
   })
 
   afterAll(async () => {
+    await prisma.loginCode.deleteMany({ where: { email: testEmail } })
     await prisma.user.deleteMany({ where: { email: testEmail } })
     await prisma.$disconnect()
   })
@@ -79,12 +81,10 @@ describe('Password Authentication Endpoints (POST /set-password, POST /login)', 
   })
 
   it('authenticates with full UIU email and password via POST /api/auth/login', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({
-        identifier: testEmail,
-        password: testPassword,
-      })
+    const res = await request(app).post('/api/auth/login').send({
+      identifier: testEmail,
+      password: testPassword,
+    })
 
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
@@ -106,12 +106,10 @@ describe('Password Authentication Endpoints (POST /set-password, POST /login)', 
   })
 
   it('authenticates with Student ID prefix and password via POST /api/auth/login', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({
-        identifier: testStudentId, // e.g. "011231999" without @
-        password: testPassword,
-      })
+    const res = await request(app).post('/api/auth/login').send({
+      identifier: testStudentId, // e.g. "011231999" without @
+      password: testPassword,
+    })
 
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
@@ -127,12 +125,10 @@ describe('Password Authentication Endpoints (POST /set-password, POST /login)', 
   })
 
   it('rejects login with incorrect password', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({
-        identifier: testEmail,
-        password: 'WrongPassword!',
-      })
+    const res = await request(app).post('/api/auth/login').send({
+      identifier: testEmail,
+      password: 'WrongPassword!',
+    })
 
     expect(res.status).toBe(401)
     expect(res.body.error.code).toBe('UNAUTHENTICATED')
