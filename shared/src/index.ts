@@ -17,6 +17,25 @@ import {
   type ChangePasswordInput,
 } from './auth'
 
+import {
+  type RtcRole,
+  rtcRoleSchema,
+  type RtcNegotiationState,
+  rtcNegotiationStateSchema,
+  rtcOfferPayloadSchema,
+  type RtcOfferPayload,
+  rtcAnswerPayloadSchema,
+  type RtcAnswerPayload,
+  rtcIceCandidateInitSchema,
+  type RtcIceCandidateInit,
+  rtcIcePayloadSchema,
+  type RtcIcePayload,
+  type RtcSignalingAckResponse,
+  mediaStatePayloadSchema,
+  type MediaStatePayload,
+  type MediaStateAckResponse,
+} from './socket'
+
 export {
   ERROR_CODES,
   type ErrorCode,
@@ -32,5 +51,21 @@ export {
   type PasswordLoginInput,
   changePasswordSchema,
   type ChangePasswordInput,
+  type RtcRole,
+  rtcRoleSchema,
+  type RtcNegotiationState,
+  rtcNegotiationStateSchema,
+  rtcOfferPayloadSchema,
+  type RtcOfferPayload,
+  rtcAnswerPayloadSchema,
+  type RtcAnswerPayload,
+  rtcIceCandidateInitSchema,
+  type RtcIceCandidateInit,
+  rtcIcePayloadSchema,
+  type RtcIcePayload,
+  type RtcSignalingAckResponse,
+  mediaStatePayloadSchema,
+  type MediaStatePayload,
+  type MediaStateAckResponse,
 }
 

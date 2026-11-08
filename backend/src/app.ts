@@ -8,6 +8,7 @@ import { requestLogger } from './middleware/request-logger'
 import healthRouter from './routes/health'
 import authRouter from './routes/auth'
 import profileRouter from './routes/profile'
+import webrtcRouter from './routes/webrtc'
 
 const app = express()
 
@@ -35,6 +36,7 @@ app.use(cookieParser)
 app.use('/api', healthRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/profile', profileRouter)
+app.use('/api/webrtc', webrtcRouter)
 
 // ---------- 404 & Centralized Error Handling ----------
 app.use(notFoundHandler)

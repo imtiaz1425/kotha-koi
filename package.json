@@ -22,6 +22,11 @@
     "test:shared": "npm run --prefix shared test",
     "test:frontend": "npm run --prefix frontend test",
     "test:backend": "npm run --prefix backend test",
-    "test": "npm run test:shared && npm run test:backend && npm run test:frontend"
+    "test": "npm run test:shared && npm run test:backend && npm run test:frontend",
+    "test:dummy": "playwright test e2e/scenarios.spec.ts",
+    "test:e2e": "playwright test e2e/scenarios.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   }
 }

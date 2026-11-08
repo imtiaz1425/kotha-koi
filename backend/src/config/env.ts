@@ -47,6 +47,8 @@ const envSchema = z.object({
         return z.NEVER
       }
     }),
+  METERED_APP_NAME: z.string().min(1).optional(),
+  METERED_API_KEY: z.string().min(1).optional(),
 })
 
 /**

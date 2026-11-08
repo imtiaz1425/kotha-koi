@@ -14,6 +14,8 @@ export const ERROR_CODES = [
   'SESSION_EXPIRED',
   'CONFLICT',
   'INTERNAL',
+  'INVALID_STATE',
+  'ROLE_MISMATCH',
 ] as const
 
 export type ErrorCode = (typeof ERROR_CODES)[number]

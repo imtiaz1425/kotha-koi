@@ -19,3 +19,7 @@ npm-debug.log*
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Test reports and artifacts
+test-results/
+playwright-report/

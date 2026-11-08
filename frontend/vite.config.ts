@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -15,6 +15,10 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
+    allowedHosts: ['bullet-concerned-gas-domain.trycloudflare.com',
+      'ensures-knows-marine-paperbacks.trycloudflare.com',
+      'organisation-asn-theta-charleston.trycloudflare.com'
+    ],
     proxy: {
       // Proxy all /api requests to the backend
       '/api': {

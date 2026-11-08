@@ -9,6 +9,8 @@ import { apiClient } from '../api/client'
 import { getSocket } from '../api/socket'
 import { OnlineBadge } from '../components/OnlineBadge'
 import { FloatingChatWindow } from '../components/FloatingChatWindow'
+import { useWebRTC } from '../hooks/useWebRTC'
+import type { RtcRole } from '@kothakoi/shared'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +43,92 @@ function nowTime() {
   })
 }
 
+// ── Web Audio Chimes ─────────────────────────────────────────────────────────
+
+let audioCtx: AudioContext | null = null
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null
+  const AudioContextClass =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext: typeof AudioContext })
+      .webkitAudioContext
+  if (!AudioContextClass) return null
+  try {
+    if (!audioCtx) {
+      audioCtx = new AudioContextClass()
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {})
+    }
+    return audioCtx
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Short, distinct ascending chime when a 1-to-1 chat connection is established.
+ * Two harmonious sine tones: C5 (523.25 Hz) then G5 (783.99 Hz).
+ */
+function playConnectedSound(): void {
+  try {
+    const ctx = getAudioContext()
+    if (!ctx) return
+    const now = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(523.25, now)
+    osc.frequency.setValueAtTime(783.99, now + 0.09)
+
+    gain.gain.setValueAtTime(0.001, now)
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02)
+    gain.gain.setValueAtTime(0.15, now + 0.09)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    osc.start(now)
+    osc.stop(now + 0.32)
+  } catch {
+    // Silently ignore in environments without audio support
+  }
+}
+
+/**
+ * Short, distinct descending cue when the chat partner unexpectedly disconnects.
+ * Two sine tones: A4 (440 Hz) down to E4 (329.63 Hz).
+ */
+function playDisconnectedSound(): void {
+  try {
+    const ctx = getAudioContext()
+    if (!ctx) return
+    const now = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(440, now)
+    osc.frequency.setValueAtTime(329.63, now + 0.11)
+
+    gain.gain.setValueAtTime(0.001, now)
+    gain.gain.exponentialRampToValueAtTime(0.15, now + 0.02)
+    gain.gain.setValueAtTime(0.12, now + 0.11)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    osc.start(now)
+    osc.stop(now + 0.35)
+  } catch {
+    // Silently ignore in environments without audio support
+  }
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function Chat() {
@@ -57,6 +145,29 @@ export default function Chat() {
   const [isTyping, setIsTyping] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [rtcRole, setRtcRole] = useState<RtcRole | null>(null)
+
+  // Real-Time WebRTC Calling Hook
+  const {
+    localStream,
+    remoteStream,
+    connectionState: rtcConnectionState,
+    mediaError,
+    localCameraError,
+    localVideoRef,
+    remoteVideoRef,
+    retryMedia,
+    isCamOff,
+    isMicMuted,
+    remoteMediaState,
+    toggleCamera,
+    toggleMicrophone,
+  } = useWebRTC({
+    sessionId,
+    rtcRole,
+    enabled: true,
+  })
+
   const [partnerName, setPartnerName] = useState<string>('')
   const [isSearching, setIsSearching] = useState<boolean>(true)
   const [connectionStatus, setConnectionStatus] = useState<
@@ -66,8 +177,68 @@ export default function Chat() {
     'connected' | 'reconnecting'
   >('connected')
 
+  // Match confirmation proposal state
+  interface MatchProposalState {
+    proposalId: string
+    partner: {
+      nickname: string
+      avatarPreset?: string
+    }
+    expiresInSeconds: number
+  }
+
+  const [matchProposal, setMatchProposal] = useState<MatchProposalState | null>(null)
+  const [hasAcceptedProposal, setHasAcceptedProposal] = useState(false)
+  const [proposalTimeLeft, setProposalTimeLeft] = useState(15)
+
+  // 10-second disconnect cooldown state
+  const [cooldownRemaining, setCooldownRemaining] = useState<number>(0)
+  const lastNextClickRef = useRef<number>(0)
+  const autoNextOnCooldownRef = useRef<boolean>(false)
+  const handleNextRef = useRef<() => void>(() => {})
+
   const sessionIdRef = useRef<string | null>(null)
   const partnerNameRef = useRef<string>('')
+
+  // Proposal timer countdown (15s to 0s)
+  useEffect(() => {
+    if (!matchProposal) return
+    const interval = setInterval(() => {
+      setProposalTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [matchProposal])
+
+  // Disconnect cooldown countdown (10s to 0s)
+  useEffect(() => {
+    if (cooldownRemaining <= 0) {
+      if (autoNextOnCooldownRef.current) {
+        autoNextOnCooldownRef.current = false
+        handleNextRef.current()
+      }
+      return
+    }
+    const timer = setInterval(() => {
+      setCooldownRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [cooldownRemaining])
+
+  // Audio notification tracking to prevent duplicate sounds
+  const connectedSoundSessionIdRef = useRef<string | null>(null)
+  const disconnectedSoundSessionIdRef = useRef<string | null>(null)
 
   // Floating chat window state (open by default per requirements)
   const [isChatOpen, setIsChatOpen] = useState(true)
@@ -107,10 +278,8 @@ export default function Chat() {
   // Unread messages counter while chat window is minimized/hidden
   const [unreadCount, setUnreadCount] = useState(0)
 
-  // Media mock controls state
-  const [isMuted, setIsMuted] = useState(false)
-  const [isCamOff, setIsCamOff] = useState(false)
-  const [isMirrored, setIsMirrored] = useState(false)
+  // Media controls state derived from useWebRTC
+  const isMuted = isMicMuted
 
   const chatStreamRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -181,12 +350,14 @@ export default function Chat() {
     socket.emit('queue:join', {
       mode: 'text',
       nickname: userNicknameRef.current || undefined,
+      confirmMatch: true,
     })
 
     interface SessionStatePayload {
       state: string
       session?: {
         sessionId: string
+        rtcRole?: RtcRole
         partner?: {
           nickname: string
           avatarPreset?: string
@@ -202,6 +373,7 @@ export default function Chat() {
     interface MatchFoundPayload {
       sessionId: string
       mode: string
+      rtcRole?: RtcRole
       matchedAt?: string
       partner?: {
         nickname: string
@@ -221,8 +393,11 @@ export default function Chat() {
       if (payload.state === 'IN_CHAT' && payload.session) {
         setSessionId(payload.session.sessionId)
         sessionIdRef.current = payload.session.sessionId
+        setRtcRole(payload.session.rtcRole || null)
         setIsSearching(false)
         setPartnerStatus('connected')
+        setMatchProposal(null)
+        setHasAcceptedProposal(false)
         const resolvedName =
           payload.session.partner?.nickname?.trim() || 'UIU Student'
         setPartnerName(resolvedName)
@@ -230,8 +405,13 @@ export default function Chat() {
           setUserNickname(payload.session.self.nickname)
         }
       } else if (payload.state === 'QUEUED') {
+        // Guard: Ignore stale QUEUED event if we are already in an active chat
+        if (sessionIdRef.current) {
+          return
+        }
         setSessionId(null)
         sessionIdRef.current = null
+        setRtcRole(null)
         setIsSearching(true)
         setPartnerName('')
         setPartnerStatus('connected')
@@ -244,6 +424,7 @@ export default function Chat() {
         }
         setSessionId(null)
         sessionIdRef.current = null
+        setRtcRole(null)
         setIsSearching(false)
         setPartnerName('')
         setPartnerStatus('connected')
@@ -251,14 +432,66 @@ export default function Chat() {
     }
 
     const handleWaiting = () => {
+      // Guard: Ignore stale waiting event if we are already in an active chat
+      if (sessionIdRef.current) {
+        return
+      }
       setIsSearching(true)
       setPartnerName('')
       appendNoticeRef.current('Waiting in queue for an available UIU peer...')
     }
 
+    const handleMatchProposed = (payload: {
+      proposalId: string
+      partner: {
+        nickname: string
+        avatarPreset?: string
+      }
+      expiresInSeconds: number
+    }) => {
+      // Guard: Never show match proposal if we are already in an active chat
+      if (sessionIdRef.current) {
+        return
+      }
+      autoNextOnCooldownRef.current = false
+      setMatchProposal(payload)
+      setHasAcceptedProposal(false)
+      setProposalTimeLeft(payload.expiresInSeconds || 15)
+      setIsSearching(false)
+      appendNoticeRef.current(
+        `Found peer ${payload.partner?.nickname || 'UIU Student'}! Please accept or decline.`
+      )
+    }
+
+    const handleMatchCancelled = (payload: {
+      proposalId: string
+      reason: string
+    }) => {
+      setMatchProposal(null)
+      setHasAcceptedProposal(false)
+      if (payload.reason === 'declined') {
+        appendNoticeRef.current(
+          'Match was declined. Searching for another UIU peer...'
+        )
+      } else if (payload.reason === 'expired') {
+        appendNoticeRef.current(
+          'Match proposal expired. Searching for another UIU peer...'
+        )
+      } else {
+        appendNoticeRef.current(
+          'Match cancelled. Searching for another UIU peer...'
+        )
+      }
+      setIsSearching(true)
+    }
+
     const handleMatchFound = (payload: MatchFoundPayload) => {
+      autoNextOnCooldownRef.current = false
+      setMatchProposal(null)
+      setHasAcceptedProposal(false)
       setSessionId(payload.sessionId)
       sessionIdRef.current = payload.sessionId
+      setRtcRole(payload.rtcRole || null)
       setIsSearching(false)
       const resolvedName = payload.partner?.nickname?.trim() || 'UIU Student'
       setPartnerName(resolvedName)
@@ -266,6 +499,12 @@ export default function Chat() {
         setUserNickname(payload.self.nickname)
       }
       appendNoticeRef.current(`Connected to ${resolvedName}! Say salam ☕`)
+
+      // Play connected chime when a 1-to-1 match is established (deduplicated per session)
+      if (connectedSoundSessionIdRef.current !== payload.sessionId) {
+        connectedSoundSessionIdRef.current = payload.sessionId
+        playConnectedSound()
+      }
     }
 
     interface ChatEndedPayload {
@@ -276,15 +515,33 @@ export default function Chat() {
         | 'partner_disconnected'
         | 'you_ended'
         | 'moderation'
+      cooldownSeconds?: number
     }
 
     const handleChatEnded = (payload: ChatEndedPayload) => {
+      // Ignore chat:ended events from old/unrelated sessions
+      if (sessionIdRef.current && payload.sessionId !== sessionIdRef.current) {
+        return
+      }
+
       setSessionId(null)
       sessionIdRef.current = null
+      setRtcRole(null)
       setIsTyping(false)
-      setIsSearching(false)
+      if (payload.reason !== 'you_ended') {
+        setIsSearching(false)
+      }
       setPartnerName('')
       setPartnerStatus('connected')
+      setMatchProposal(null)
+      setHasAcceptedProposal(false)
+
+      const cd =
+        payload.cooldownSeconds ??
+        (payload.reason === 'partner_disconnected' ? 10 : 0)
+      if (cd > 0) {
+        setCooldownRemaining(cd)
+      }
 
       let noticeText = 'This adda has ended.'
       if (payload.reason === 'partner_skipped') {
@@ -295,11 +552,40 @@ export default function Chat() {
       } else if (payload.reason === 'partner_disconnected') {
         noticeText =
           'Your partner disconnected. Click Next to find a new UIU peer.'
+        // Play disconnect sound if not already triggered during reconnecting state
+        if (disconnectedSoundSessionIdRef.current !== payload.sessionId) {
+          disconnectedSoundSessionIdRef.current = payload.sessionId
+          playDisconnectedSound()
+        }
       } else if (payload.reason === 'you_ended') {
         noticeText = 'You ended the adda.'
       }
 
       appendNoticeRef.current(noticeText)
+    }
+
+    const handleError = (payload: {
+      code: string
+      message: string
+      remainingSeconds?: number
+    }) => {
+      if (payload.code === 'COOLDOWN_ACTIVE') {
+        const remaining = payload.remainingSeconds || 10
+        setCooldownRemaining(remaining)
+        setIsSearching(false)
+        appendNoticeRef.current(
+          payload.message ||
+            `Please wait ${remaining}s before finding a new match.`
+        )
+      } else if (payload.code === 'ALREADY_BUSY') {
+        if (payload.message?.includes('already waiting')) {
+          setIsSearching(true)
+        } else {
+          setIsSearching(false)
+        }
+      } else {
+        setIsSearching(false)
+      }
     }
 
     interface ChatPartnerStatusPayload {
@@ -308,11 +594,21 @@ export default function Chat() {
     }
 
     const handlePartnerStatus = (payload: ChatPartnerStatusPayload) => {
+      // Ignore status updates from old or unrelated sessions
+      if (!sessionIdRef.current || payload.sessionId !== sessionIdRef.current) {
+        return
+      }
+
       if (payload.status === 'reconnecting') {
         setPartnerStatus('reconnecting')
         appendNoticeRef.current(
           'Partner disconnected unexpectedly. Waiting up to 15s for reconnection...'
         )
+        // Play disconnect sound when partner drops unexpectedly (deduplicated per session)
+        if (disconnectedSoundSessionIdRef.current !== payload.sessionId) {
+          disconnectedSoundSessionIdRef.current = payload.sessionId
+          playDisconnectedSound()
+        }
       } else if (payload.status === 'back') {
         setPartnerStatus('connected')
         appendNoticeRef.current(
@@ -327,6 +623,11 @@ export default function Chat() {
       text: string
       at: string
     }) => {
+      // Strict session validation: Only accept messages matching current active session
+      if (!sessionIdRef.current || payload.sessionId !== sessionIdRef.current) {
+        return
+      }
+
       setIsTyping(false)
       const time = payload.at
         ? new Date(payload.at).toLocaleTimeString([], {
@@ -357,6 +658,11 @@ export default function Chat() {
       sessionId: string
       isTyping: boolean
     }) => {
+      // Only process typing events for current active session
+      if (!sessionIdRef.current || payload.sessionId !== sessionIdRef.current) {
+        return
+      }
+
       setIsTyping(Boolean(payload.isTyping))
       if (payload.isTyping) {
         if (typingTimer) {
@@ -387,6 +693,9 @@ export default function Chat() {
     const handleReconnect = () => {
       setConnectionStatus('connected')
       appendNoticeRef.current('Reconnected to server!')
+      if (sessionIdRef.current) {
+        socket.emit('session:restore', { sessionId: sessionIdRef.current })
+      }
     }
 
     const handleReconnectFailed = () => {
@@ -402,11 +711,14 @@ export default function Chat() {
 
     socket.on('session:state', handleSessionState)
     socket.on('queue:waiting', handleWaiting)
+    socket.on('match:proposed', handleMatchProposed)
+    socket.on('match:cancelled', handleMatchCancelled)
     socket.on('match:found', handleMatchFound)
     socket.on('chat:message', handleIncomingMessage)
     socket.on('chat:typing', handlePartnerTyping)
     socket.on('chat:partner_status', handlePartnerStatus)
     socket.on('chat:ended', handleChatEnded)
+    socket.on('error', handleError)
 
     return () => {
       if (typingTimer) {
@@ -421,11 +733,14 @@ export default function Chat() {
 
       socket.off('session:state', handleSessionState)
       socket.off('queue:waiting', handleWaiting)
+      socket.off('match:proposed', handleMatchProposed)
+      socket.off('match:cancelled', handleMatchCancelled)
       socket.off('match:found', handleMatchFound)
       socket.off('chat:message', handleIncomingMessage)
       socket.off('chat:typing', handlePartnerTyping)
       socket.off('chat:partner_status', handlePartnerStatus)
       socket.off('chat:ended', handleChatEnded)
+      socket.off('error', handleError)
     }
   }, [])
 
@@ -438,13 +753,31 @@ export default function Chat() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
+  const handleAcceptMatch = useCallback(() => {
+    if (!matchProposal || hasAcceptedProposal) return
+    setHasAcceptedProposal(true)
+    const socket = getSocket()
+    socket.emit('match:accept', { proposalId: matchProposal.proposalId })
+  }, [matchProposal, hasAcceptedProposal])
+
+  const handleDeclineMatch = useCallback(() => {
+    if (!matchProposal) return
+    const pid = matchProposal.proposalId
+    setMatchProposal(null)
+    setHasAcceptedProposal(false)
+    const socket = getSocket()
+    socket.emit('match:decline', { proposalId: pid })
+    appendNotice('You declined the match. Returning to queue...')
+    setIsSearching(true)
+  }, [matchProposal, appendNotice])
+
   const toggleMic = useCallback(() => {
-    setIsMuted((prev) => !prev)
-  }, [])
+    toggleMicrophone()
+  }, [toggleMicrophone])
 
   const toggleCam = useCallback(() => {
-    setIsCamOff((prev) => !prev)
-  }, [])
+    toggleCamera()
+  }, [toggleCamera])
 
   const handleOpenChat = useCallback(() => {
     setIsChatOpen(true)
@@ -472,21 +805,52 @@ export default function Chat() {
   }, [])
 
   const handleNext = useCallback(() => {
+    const now = Date.now()
+    if (now - lastNextClickRef.current < 500) {
+      return
+    }
+    lastNextClickRef.current = now
+
+    if (cooldownRemaining > 0) {
+      autoNextOnCooldownRef.current = true
+      appendNotice(
+        `Please wait ${cooldownRemaining}s before finding a new match.`
+      )
+      return
+    }
+
+    autoNextOnCooldownRef.current = false
+
     const socket = getSocket()
+    if (!socket.connected) {
+      socket.connect()
+    }
+
     const currentSession = sessionIdRef.current
+
     setIsSearching(true)
     setPartnerName('')
+    setMatchProposal(null)
+    setHasAcceptedProposal(false)
+
+    // Clean up previous chat session immediately to prevent stale session ID
+    // from blocking incoming proposals or receiving old session events
+    setSessionId(null)
+    sessionIdRef.current = null
+    setRtcRole(null)
+    setPartnerStatus('connected')
 
     if (currentSession) {
       appendNotice('Skipping to next peer...')
       socket.emit(
         'chat:skip',
-        { sessionId: currentSession },
+        { sessionId: currentSession, confirmMatch: true },
         (ack: { ok: boolean }) => {
           if (!ack?.ok) {
             socket.emit('queue:join', {
               mode: 'text',
               nickname: userNicknameRef.current || undefined,
+              confirmMatch: true,
             })
           }
         }
@@ -496,14 +860,25 @@ export default function Chat() {
       socket.emit('queue:join', {
         mode: 'text',
         nickname: userNicknameRef.current || undefined,
+        confirmMatch: true,
       })
     }
-  }, [appendNotice])
+  }, [appendNotice, cooldownRemaining])
+
+  useEffect(() => {
+    handleNextRef.current = handleNext
+  }, [handleNext])
 
   // Keyboard shortcuts: ESC (Next), M (Mute), V (Camera), C (Toggle Chat)
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (document.activeElement === inputRef.current) return
+      const activeEl = document.activeElement
+      const isEditable =
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable)
+      if (isEditable) return
 
       if (e.key === 'Escape') {
         e.preventDefault()
@@ -591,6 +966,7 @@ export default function Chat() {
 
   function handleEnd() {
     if (window.confirm('Disconnect and leave this adda?')) {
+      autoNextOnCooldownRef.current = false
       const socket = getSocket()
       const currentSession = sessionIdRef.current
       if (currentSession) {
@@ -598,6 +974,9 @@ export default function Chat() {
       } else {
         socket.emit('queue:leave')
       }
+      setSessionId(null)
+      sessionIdRef.current = null
+      setRtcRole(null)
       navigate('/')
     }
   }
@@ -700,6 +1079,25 @@ export default function Chat() {
       </header>
 
       {/* ── Status Banners for Connection & Partner ─────────────────────── */}
+      {(mediaError || (sessionId && rtcConnectionState === 'failed')) && (
+        <div
+          id="mediaErrorBanner"
+          className="bg-[#FFEAA7] border-b-2 border-on-surface px-4 py-1.5 text-center font-bold text-xs flex items-center justify-center gap-2 text-on-surface shrink-0"
+        >
+          <span className="material-symbols-outlined text-[16px] text-primary">
+            info
+          </span>
+          <span>{mediaError || 'WebRTC media failed. Text chat still works.'}</span>
+          <button
+            type="button"
+            onClick={retryMedia}
+            className="ml-2 px-2 py-0.5 bg-primary text-on-primary rounded text-[10px] uppercase font-bold hover:bg-[#ff8638] border border-on-surface"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {connectionStatus === 'reconnecting' && (
         <div
           id="connectionBanner"
@@ -779,106 +1177,219 @@ export default function Chat() {
                 <rect fill="url(#chatVideoGrid)" height="100%" width="100%" />
               </svg>
 
+              {/* Remote Video Stream Element */}
+              <video
+                ref={remoteVideoRef}
+                id="remoteVideo"
+                autoPlay
+                playsInline
+                className={`absolute inset-0 w-full h-full object-cover z-10 -scale-x-100 ${sessionId && remoteStream ? 'block' : 'hidden'}`}
+              />
+
+              {/* Remote Camera Disabled Overlay */}
+              {sessionId && remoteMediaState.isCamOff && (
+                <div
+                  id="remote-cam-disabled-overlay"
+                  className="absolute inset-0 bg-[#1c1b1f] flex flex-col items-center justify-center text-on-primary z-20 animate-in fade-in duration-150"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-surface-container border-2 border-on-surface shadow-[3px_3px_0px_#f47721] flex items-center justify-center mb-2">
+                    <span className="material-symbols-outlined text-3xl text-error">
+                      videocam_off
+                    </span>
+                  </div>
+                  <p className="font-label-sm text-sm font-bold text-on-surface">
+                    {partnerName || 'UIU Student'}&apos;s camera is off
+                  </p>
+                  <p className="font-body-sm text-xs text-on-surface-variant/80 mt-1 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Audio is still active
+                  </p>
+                </div>
+              )}
+
               {/* Stranger Visual Presentation based on Live Connection Phase */}
               {sessionId ? (
-                <div className="relative z-10 flex flex-col items-center gap-2">
-                  <div className="relative">
-                    {/* Mascot Avatar */}
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl bg-surface-container-lowest border-2 border-on-surface shadow-[3px_3px_0px_#f47721] p-2 flex items-center justify-center">
-                      <svg
-                        className="w-full h-full text-on-surface"
-                        fill="none"
-                        viewBox="0 0 64 64"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M22 10V6H24V10H22ZM28 8V4H30V8H28ZM36 10V6H38V10H36Z"
-                          fill="#F47721"
-                        />
-                        <rect
-                          fill="#FFE087"
-                          height="26"
-                          rx="2"
-                          stroke="#1c1b1b"
-                          strokeWidth="2"
-                          width="30"
-                          x="14"
-                          y="16"
-                        />
-                        <path
-                          d="M14 26H44M14 34H44"
-                          stroke="#9C4500"
-                          strokeDasharray="2 3"
-                          strokeLinecap="round"
-                          strokeWidth="2"
-                        />
-                        <path
-                          d="M44 20H49C51.2 20 53 21.8 53 24V28C53 30.2 51.2 32 49 32H44"
-                          stroke="#1c1b1b"
-                          strokeWidth="2"
-                        />
-                        <rect
-                          fill="#1c1b1b"
-                          height="4"
-                          width="3"
-                          x="20"
-                          y="24"
-                        />
-                        <rect
-                          fill="#1c1b1b"
-                          height="4"
-                          width="3"
-                          x="35"
-                          y="24"
-                        />
-                        <rect
-                          fill="#F47721"
-                          height="2"
-                          width="3"
-                          x="18"
-                          y="29"
-                        />
-                        <rect
-                          fill="#F47721"
-                          height="2"
-                          width="3"
-                          x="37"
-                          y="29"
-                        />
-                        <path
-                          d="M26 31C26 32.5 27.5 34 29 34C30.5 34 32 32.5 32 31"
-                          stroke="#1c1b1b"
-                          strokeWidth="2"
-                        />
-                        <rect
-                          fill="#FFFFFF"
-                          height="4"
-                          rx="1"
-                          stroke="#1c1b1b"
-                          strokeWidth="2"
-                          width="38"
-                          x="10"
-                          y="44"
-                        />
-                      </svg>
+                !remoteStream && (
+                  <div
+                    id="remoteVideoConnecting"
+                    className="relative z-10 flex flex-col items-center gap-2"
+                  >
+                    <div className="relative">
+                      {/* Mascot Avatar */}
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl bg-surface-container-lowest border-2 border-on-surface shadow-[3px_3px_0px_#f47721] p-2 flex items-center justify-center">
+                        <svg
+                          className="w-full h-full text-on-surface"
+                          fill="none"
+                          viewBox="0 0 64 64"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M22 10V6H24V10H22ZM28 8V4H30V8H28ZM36 10V6H38V10H36Z"
+                            fill="#F47721"
+                          />
+                          <rect
+                            fill="#FFE087"
+                            height="26"
+                            rx="2"
+                            stroke="#1c1b1b"
+                            strokeWidth="2"
+                            width="30"
+                            x="14"
+                            y="16"
+                          />
+                          <path
+                            d="M14 26H44M14 34H44"
+                            stroke="#9C4500"
+                            strokeDasharray="2 3"
+                            strokeLinecap="round"
+                            strokeWidth="2"
+                          />
+                          <path
+                            d="M44 20H49C51.2 20 53 21.8 53 24V28C53 30.2 51.2 32 49 32H44"
+                            stroke="#1c1b1b"
+                            strokeWidth="2"
+                          />
+                          <rect
+                            fill="#1c1b1b"
+                            height="4"
+                            width="3"
+                            x="20"
+                            y="24"
+                          />
+                          <rect
+                            fill="#1c1b1b"
+                            height="4"
+                            width="3"
+                            x="35"
+                            y="24"
+                          />
+                          <rect
+                            fill="#F47721"
+                            height="2"
+                            width="3"
+                            x="18"
+                            y="29"
+                          />
+                          <rect
+                            fill="#F47721"
+                            height="2"
+                            width="3"
+                            x="37"
+                            y="29"
+                          />
+                          <path
+                            d="M26 31C26 32.5 27.5 34 29 34C30.5 34 32 32.5 32 31"
+                            stroke="#1c1b1b"
+                            strokeWidth="2"
+                          />
+                          <rect
+                            fill="#FFFFFF"
+                            height="4"
+                            rx="1"
+                            stroke="#1c1b1b"
+                            strokeWidth="2"
+                            width="38"
+                            x="10"
+                            y="44"
+                          />
+                        </svg>
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-secondary-container border border-on-surface flex items-center justify-center text-[13px] shadow-[1px_1px_0px_#1c1b1b]">
+                        ☕
+                      </div>
                     </div>
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-secondary-container border border-on-surface flex items-center justify-center text-[13px] shadow-[1px_1px_0px_#1c1b1b]">
-                      ☕
+
+                    {/* Audio Waveform Indicator */}
+                    <div className="flex items-center gap-1 h-4 px-2 py-0.5 bg-on-surface/85 rounded-full border border-surface-variant/30">
+                      <span className="w-1 h-2 bg-primary-container rounded-full animate-pulse" />
+                      <span className="w-1 h-3.5 bg-primary-container rounded-full animate-bounce" />
+                      <span className="w-1 h-2.5 bg-secondary-container rounded-full animate-pulse" />
+                      <span className="w-1 h-4 bg-primary-container rounded-full animate-bounce [animation-delay:150ms]" />
+                      <span className="font-label-sm text-[10px] text-surface-bright ml-1">
+                        {partnerStatus === 'reconnecting'
+                          ? 'Reconnecting...'
+                          : 'Connecting video...'}
+                      </span>
+                    </div>
+                  </div>
+                )
+              ) : matchProposal ? (
+                <div
+                  id="matchConfirmationModal"
+                  className="relative z-20 flex flex-col items-center gap-3 p-5 text-center max-w-sm bg-[#FFF5E6] border-2 border-on-surface rounded-2xl shadow-[4px_4px_0px_#1c1b1b] animate-in fade-in zoom-in-95 duration-200"
+                >
+                  <div className="flex items-center justify-between w-full pb-2 border-b-2 border-on-surface/20">
+                    <span className="font-headline-md text-xs font-bold uppercase tracking-wider text-primary">
+                      Match Found!
+                    </span>
+                    <span
+                      id="matchProposalTimer"
+                      className="px-2 py-0.5 bg-error-container text-on-error-container border border-on-surface rounded-full text-[11px] font-bold shadow-[1px_1px_0px_#1c1b1b]"
+                    >
+                      ⏱ {proposalTimeLeft}s
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-surface-container-lowest border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] flex items-center justify-center text-4xl">
+                      {matchProposal.partner.avatarPreset === 'cat'
+                        ? '🐱'
+                        : matchProposal.partner.avatarPreset === 'coffee'
+                          ? '☕'
+                          : matchProposal.partner.avatarPreset === 'tea_cup'
+                            ? '🍵'
+                            : '🥭'}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border border-on-surface flex items-center justify-center text-white text-xs shadow-[1px_1px_0px_#1c1b1b]">
+                      ✓
                     </div>
                   </div>
 
-                  {/* Audio Waveform Indicator */}
-                  <div className="flex items-center gap-1 h-4 px-2 py-0.5 bg-on-surface/85 rounded-full border border-surface-variant/30">
-                    <span className="w-1 h-2 bg-primary-container rounded-full animate-pulse" />
-                    <span className="w-1 h-3.5 bg-primary-container rounded-full animate-bounce" />
-                    <span className="w-1 h-2.5 bg-secondary-container rounded-full animate-pulse" />
-                    <span className="w-1 h-4 bg-primary-container rounded-full animate-bounce [animation-delay:150ms]" />
-                    <span className="font-label-sm text-[10px] text-surface-bright ml-1">
-                      {partnerStatus === 'reconnecting'
-                        ? 'Reconnecting...'
-                        : 'Connected'}
-                    </span>
+                  <div className="space-y-1">
+                    <h3
+                      id="matchPartnerNickname"
+                      className="font-headline-md text-base sm:text-lg font-bold text-on-surface tracking-tight"
+                    >
+                      {matchProposal.partner.nickname || 'UIU Student'}
+                    </h3>
+                    <p className="font-body-sm text-[11px] text-on-surface-variant leading-snug">
+                      Verified UIU Student • Ready to connect
+                    </p>
                   </div>
+
+                  {hasAcceptedProposal ? (
+                    <div className="w-full py-2 px-3 bg-secondary-container/90 border-2 border-on-surface rounded-xl flex items-center justify-center gap-2 shadow-[2px_2px_0px_#1c1b1b]">
+                      <span className="w-2.5 h-2.5 rounded-full bg-primary animate-ping" />
+                      <span className="font-label-sm text-xs font-bold text-on-surface">
+                        Accepted! Waiting for partner...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 w-full pt-1">
+                      <button
+                        id="acceptMatchBtn"
+                        type="button"
+                        onClick={handleAcceptMatch}
+                        className="flex-1 py-2 px-3 bg-[#4ade80] hover:bg-[#22c55e] text-on-surface font-headline-md text-xs font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          check
+                        </span>
+                        <span>Accept</span>
+                      </button>
+                      <button
+                        id="declineMatchBtn"
+                        type="button"
+                        onClick={handleDeclineMatch}
+                        className="flex-1 py-2 px-3 bg-surface-container hover:bg-error-container text-on-surface hover:text-error font-headline-md text-xs font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          close
+                        </span>
+                        <span>Decline</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : isSearching ? (
                 <div
@@ -926,9 +1437,18 @@ export default function Chat() {
                     id="btn-find-next-panel"
                     type="button"
                     onClick={handleNext}
-                    className="px-3.5 py-1.5 bg-primary-container hover:bg-[#ff8638] text-on-surface font-headline-md text-xs font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center gap-1.5"
+                    disabled={cooldownRemaining > 0}
+                    className={`px-3.5 py-1.5 font-headline-md text-xs font-bold uppercase tracking-wider rounded-xl border-2 border-on-surface transition-all flex items-center gap-1.5 ${
+                      cooldownRemaining > 0
+                        ? 'bg-surface-variant/40 text-on-surface/50 border-on-surface/40 cursor-not-allowed shadow-none'
+                        : 'bg-primary-container hover:bg-[#ff8638] text-on-surface shadow-[2px_2px_0px_#1c1b1b] active:translate-x-0.5 active:translate-y-0.5'
+                    }`}
                   >
-                    <span>Find Next Student</span>
+                    <span>
+                      {cooldownRemaining > 0
+                        ? `Find Next (${cooldownRemaining}s)`
+                        : 'Find Next Student'}
+                    </span>
                     <span className="material-symbols-outlined text-[15px]">
                       arrow_forward
                     </span>
@@ -966,28 +1486,74 @@ export default function Chat() {
                       : 'Offline'}
                 </span>
               </div>
-              <span className="font-label-sm text-[10px] text-surface-bright bg-on-surface/80 px-1.5 py-0.5 rounded border border-surface-variant/20">
-                {sessionId
-                  ? partnerStatus === 'reconnecting'
-                    ? 'Reconnecting (15s)'
-                    : 'Connected'
-                  : isSearching
-                    ? 'In Queue'
-                    : 'Ended'}
-              </span>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                {sessionId && (
+                  <>
+                    <span
+                      id="remote-mic-badge"
+                      className={`p-1 rounded-full ${
+                        remoteMediaState.isMicMuted ? 'bg-error' : 'bg-emerald-500'
+                      } text-on-primary border border-on-surface flex items-center justify-center shadow-[1px_1px_0px_#1c1b1b]`}
+                      title={remoteMediaState.isMicMuted ? 'Partner Muted' : 'Partner Mic Live'}
+                    >
+                      <span className="material-symbols-outlined text-[10px] block">
+                        {remoteMediaState.isMicMuted ? 'mic_off' : 'mic'}
+                      </span>
+                    </span>
+                    <span
+                      id="remote-cam-badge"
+                      className={`p-1 rounded-full ${
+                        remoteMediaState.isCamOff ? 'bg-error' : 'bg-emerald-500'
+                      } text-on-primary border border-on-surface flex items-center justify-center shadow-[1px_1px_0px_#1c1b1b]`}
+                      title={remoteMediaState.isCamOff ? 'Partner Camera Off' : 'Partner Camera Live'}
+                    >
+                      <span className="material-symbols-outlined text-[10px] block">
+                        {remoteMediaState.isCamOff ? 'videocam_off' : 'videocam'}
+                      </span>
+                    </span>
+                  </>
+                )}
+                <span className="font-label-sm text-[10px] text-surface-bright bg-on-surface/80 px-1.5 py-0.5 rounded border border-surface-variant/20">
+                  {sessionId
+                    ? partnerStatus === 'reconnecting'
+                      ? 'Reconnecting (15s)'
+                      : 'Chat Connected'
+                    : isSearching
+                      ? 'In Queue'
+                      : 'Ended'}
+                </span>
+              </div>
             </div>
 
             {/* Stranger Bottom-Left Tag */}
             <div className="absolute bottom-2 left-2 z-30 pointer-events-none">
               <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-surface-container-lowest/90 backdrop-blur-sm border border-on-surface rounded shadow-[1px_1px_0px_#1c1b1b]">
-                <span className="material-symbols-outlined text-[12px] text-emerald-600">
+                <span className={`material-symbols-outlined text-[12px] ${
+                  sessionId && rtcConnectionState === 'connected'
+                    ? 'text-emerald-600'
+                    : sessionId && (rtcConnectionState === 'connecting' || rtcConnectionState === 'new')
+                      ? 'text-yellow-500'
+                      : sessionId && rtcConnectionState === 'failed'
+                        ? 'text-error'
+                        : 'text-on-surface-variant'
+                }`}>
                   wifi
                 </span>
                 <span className="font-label-sm text-[10px] text-on-surface font-semibold">
                   {sessionId
                     ? partnerStatus === 'reconnecting'
                       ? 'Reconnecting...'
-                      : 'Live • UIU P2P'
+                      : rtcConnectionState === 'connected'
+                        ? 'Media Live • P2P'
+                        : rtcConnectionState === 'connecting'
+                          ? 'Connecting Media...'
+                          : rtcConnectionState === 'new'
+                            ? 'Waiting for Media...'
+                            : rtcConnectionState === 'failed'
+                              ? 'Media Failed – Chat Only'
+                              : rtcConnectionState === 'closed' || rtcConnectionState === 'disconnected'
+                                ? 'Media Closed'
+                                : 'Waiting for Media...'
                     : isSearching
                       ? 'Connecting to Queue'
                       : 'Disconnected'}
@@ -1005,12 +1571,33 @@ export default function Chat() {
             <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-primary-container z-20 pointer-events-none" />
 
             {/* Camera View Layer */}
-            <div className="absolute inset-0 bg-[#2b2b30] flex items-center justify-center">
-              <img
-                className={`w-full h-full object-cover transition-transform ${isMirrored ? '-scale-x-100' : ''}`}
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAL__CXl0m59Y9dcmXOcUvmzHsbsNdHlIEEBdXukXTPXh79IiL1dwH6FaPJrxtVrc3jrDcwt3uIJ98Gy_VuF6c3rm7eFCQ2NV7_oUHj4Sd49_9gYAOJKACsE3aUjmcYp1z1TmjcQVN4mnAb8i9wjOAdhOwHqS7mZArRpgksXcxqbjyimu1xih6SUqWtojashsLFGdnFS2WjBUI-t7eSSgRoQRbdERDlAGV-gOEWmIsAHwyuLIevUogX"
-                alt="Self video preview"
+            <div className="absolute inset-0 bg-[#2b2b30] flex items-center justify-center overflow-hidden">
+              <video
+                ref={localVideoRef}
+                id="localVideo"
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover -scale-x-100 ${localStream ? 'block' : 'hidden'}`}
               />
+              {!localStream && (
+                <div
+                  id="localVideoPlaceholder"
+                  className="flex flex-col items-center justify-center text-on-surface-variant p-4 text-center z-10"
+                >
+                  <span className="material-symbols-outlined text-4xl mb-2 text-surface-tint">
+                    videocam
+                  </span>
+                  <p className="font-label-sm text-xs font-bold text-on-surface">
+                    {localCameraError ? 'Camera Unavailable' : 'Starting camera...'}
+                  </p>
+                  <p className="font-body-sm text-[11px] text-on-surface-variant/70 mt-0.5">
+                    {localCameraError
+                      ? localCameraError
+                      : 'Allow browser camera access'}
+                  </p>
+                </div>
+              )}
               {/* Camera Disabled Overlay */}
               <div
                 id="self-cam-disabled-overlay"
@@ -1026,7 +1613,7 @@ export default function Chat() {
             </div>
 
             {/* Self Top Overlay */}
-            <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1 z-30">
+            <div className="absolute top-2 left-2 z-30 flex items-center">
               <div className="flex items-center gap-1.5 px-2 py-0.5 bg-surface-container-lowest/95 backdrop-blur-sm border-2 border-on-surface rounded-lg shadow-[2px_2px_0px_#1c1b1b]">
                 <span className="font-headline-md text-xs sm:text-sm font-bold text-on-surface">
                   {userNickname ? `You (${userNickname})` : 'You'}
@@ -1035,16 +1622,6 @@ export default function Chat() {
                   You
                 </span>
               </div>
-              <button
-                id="btn-pip-flip"
-                title="Flip mirror"
-                onClick={() => setIsMirrored((prev) => !prev)}
-                className="p-1 rounded bg-surface-container-lowest/90 text-on-surface hover:bg-surface-container-lowest transition-colors border border-on-surface/50 shadow-[1px_1px_0px_#1c1b1b]"
-              >
-                <span className="material-symbols-outlined text-[13px] block">
-                  flip_camera_ios
-                </span>
-              </button>
             </div>
 
             {/* Self Bottom Status Indicators */}
@@ -1059,6 +1636,7 @@ export default function Chat() {
                 </span>
               </span>
               <span
+                id="self-cam-badge"
                 className={`p-1 rounded-full ${isCamOff ? 'bg-error' : 'bg-emerald-500'} text-on-primary border border-on-surface flex items-center justify-center shadow-[1px_1px_0px_#1c1b1b]`}
                 title={isCamOff ? 'Camera Off' : 'Camera Live'}
               >
@@ -1077,7 +1655,11 @@ export default function Chat() {
             <button
               id="btn-toggle-mic"
               onClick={toggleMic}
-              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-container border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] flex items-center gap-1.5 font-label-sm text-xs sm:text-sm text-on-surface hover:bg-secondary-container active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg border-2 flex items-center gap-1.5 font-label-sm text-xs sm:text-sm active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all ${
+                isMuted
+                  ? 'bg-error/20 text-error border-error shadow-[2px_2px_0px_#b3261e]'
+                  : 'bg-surface-container hover:bg-secondary-container text-on-surface border-on-surface shadow-[2px_2px_0px_#1c1b1b]'
+              }`}
             >
               <span
                 className={`material-symbols-outlined text-[16px] ${isMuted ? 'text-error' : 'text-on-surface'}`}
@@ -1092,7 +1674,11 @@ export default function Chat() {
             <button
               id="btn-toggle-cam"
               onClick={toggleCam}
-              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-container border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] flex items-center gap-1.5 font-label-sm text-xs sm:text-sm text-on-surface hover:bg-secondary-container active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg border-2 flex items-center gap-1.5 font-label-sm text-xs sm:text-sm active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all ${
+                isCamOff
+                  ? 'bg-error/20 text-error border-error shadow-[2px_2px_0px_#b3261e]'
+                  : 'bg-surface-container hover:bg-secondary-container text-on-surface border-on-surface shadow-[2px_2px_0px_#1c1b1b]'
+              }`}
             >
               <span
                 className={`material-symbols-outlined text-[16px] ${isCamOff ? 'text-error' : 'text-on-surface'}`}
@@ -1132,12 +1718,21 @@ export default function Chat() {
             <button
               id="nextBtn"
               onClick={handleNext}
-              className="px-4 sm:px-6 py-1.5 rounded-lg bg-primary-container text-on-primary-container border-2 border-on-surface shadow-[3px_3px_0px_#1c1b1b] font-headline-md text-sm font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-[#ff8638] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+              disabled={cooldownRemaining > 0}
+              className={`px-4 sm:px-6 py-1.5 rounded-lg border-2 border-on-surface font-headline-md text-sm font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
+                cooldownRemaining > 0
+                  ? 'bg-surface-variant/40 text-on-surface/50 border-on-surface/40 cursor-not-allowed shadow-none'
+                  : 'bg-primary-container text-on-primary-container hover:bg-[#ff8638] shadow-[3px_3px_0px_#1c1b1b] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none'
+              }`}
             >
-              <span>Next</span>
-              <span className="px-1.5 py-0.2 bg-[#FFF5E6] text-on-surface rounded border border-on-surface text-[10px] font-label-sm font-bold shadow-[1px_1px_0px_#1c1b1b] hidden sm:inline-block">
-                ESC
+              <span>
+                {cooldownRemaining > 0 ? `Next (${cooldownRemaining}s)` : 'Next'}
               </span>
+              {cooldownRemaining === 0 && (
+                <span className="px-1.5 py-0.2 bg-[#FFF5E6] text-on-surface rounded border border-on-surface text-[10px] font-label-sm font-bold shadow-[1px_1px_0px_#1c1b1b] hidden sm:inline-block">
+                  ESC
+                </span>
+              )}
             </button>
 
             <button
