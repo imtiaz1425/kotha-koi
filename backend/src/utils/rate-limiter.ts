@@ -59,3 +59,5 @@ export class RateLimiter {
 
 export const authRateLimiter = new RateLimiter()
 export const iceServersRateLimiter = new RateLimiter()
+export const reportRateLimiter = new RateLimiter()
+export const blockRateLimiter = new RateLimiter()

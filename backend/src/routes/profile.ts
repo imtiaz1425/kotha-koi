@@ -2,6 +2,13 @@ import { Router, Request, Response, NextFunction } from 'express'
 import prisma from '../db'
 import { requireAuth } from '../middleware/require-auth'
 import { AppError } from '../errors/app-error'
+import {
+  SessionService,
+  SESSION_COOKIE_NAME,
+  getClearCookieOptions,
+} from '../services/session'
+import { MatchingService } from '../services/matching'
+import { terminateChatSession, disconnectUserSockets } from '../realtime/socket'
 
 const router = Router()
 
@@ -23,10 +30,18 @@ router.get(
 
       res.status(200).json({
         ok: true,
+        email: user?.email || '',
         name: user?.name || '',
         nickname: user?.profile?.currentNickname || '',
         avatarPreset: user?.profile?.avatarPreset || 'mango',
         preferences: user?.profile?.preferences || {},
+        profile: {
+          email: user?.email || '',
+          name: user?.name || '',
+          nickname: user?.profile?.currentNickname || '',
+          avatarPreset: user?.profile?.avatarPreset || 'mango',
+          preferences: user?.profile?.preferences || {},
+        },
       })
     } catch (err) {
       next(err)
@@ -47,32 +62,14 @@ router.put(
       const userId = req.user!.id
       const { name, nickname, avatarPreset, preferences } = req.body || {}
 
-      // 1. Update private account name on User model if provided
-      if (name !== undefined) {
-        if (typeof name !== 'string') {
-          throw new AppError(
-            400,
-            'VALIDATION_FAILED',
-            'Name must be a valid text string.',
-            { field: 'name' }
-          )
-        }
-        const trimmedName = name.trim()
-        if (
-          trimmedName &&
-          (trimmedName.length < 2 || trimmedName.length > 60)
-        ) {
-          throw new AppError(
-            400,
-            'VALIDATION_FAILED',
-            'Name must be between 2 and 60 characters.',
-            { field: 'name' }
-          )
-        }
-        await prisma.user.update({
-          where: { id: userId },
-          data: { name: trimmedName || null },
-        })
+      // 1. Real Name is immutable after registration. Reject any attempts to modify it.
+      if (req.body?.name !== undefined || req.body?.realName !== undefined) {
+        throw new AppError(
+          400,
+          'VALIDATION_FAILED',
+          'Real Name is permanent and cannot be modified.',
+          { field: 'name' }
+        )
       }
 
       // 2. Update chat nickname, avatar preset, and preferences on Profile model if provided
@@ -144,10 +141,86 @@ router.put(
 
       res.status(200).json({
         ok: true,
+        email: updatedUser?.email || '',
         name: updatedUser?.name || '',
         nickname: updatedUser?.profile?.currentNickname || '',
         avatarPreset: updatedUser?.profile?.avatarPreset || 'mango',
         preferences: updatedUser?.profile?.preferences || {},
+        profile: {
+          email: updatedUser?.email || '',
+          name: updatedUser?.name || '',
+          nickname: updatedUser?.profile?.currentNickname || '',
+          avatarPreset: updatedUser?.profile?.avatarPreset || 'mango',
+          preferences: updatedUser?.profile?.preferences || {},
+        },
+      })
+    } catch (err) {
+      next(err)
+    }
+  }
+)
+
+/**
+ * DELETE /api/profile
+ * Self-service account deletion.
+ * Cleans up personal profile, credentials, and active sessions.
+ * Anonymizes the account record so safety reports and moderation history remain intact without PII.
+ */
+router.delete(
+  '/',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.id
+      const { confirmation } = req.body || {}
+
+      if (confirmation !== 'DELETE' && confirmation !== true) {
+        throw new AppError(
+          400,
+          'VALIDATION_FAILED',
+          'Explicit confirmation is required to delete your account. Provide confirmation: "DELETE".',
+          { field: 'confirmation' }
+        )
+      }
+
+      // 1. Leave any matchmaking queues or ongoing matches
+      MatchingService.leaveQueue(userId)
+      const activeMatch = MatchingService.getActiveMatchForUser(userId)
+      if (activeMatch) {
+        await terminateChatSession(activeMatch.sessionId, userId, 'END')
+      }
+
+      // 2. Disconnect active sockets
+      disconnectUserSockets(userId, 'Account has been deleted.')
+
+      // 3. Revoke all active sessions
+      await SessionService.revokeAllUserSessions(userId)
+
+      // 4. Clean up personal data
+      await prisma.profile.deleteMany({ where: { userId } })
+      await prisma.userPassword.deleteMany({ where: { userId } })
+      await prisma.session.deleteMany({ where: { userId } })
+
+      // 5. Anonymize user record to preserve audit & moderation integrity
+      const anonymizedEmail = `deleted_${userId.replace(/-/g, '')}@deleted.kothakoi.local`
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          email: anonymizedEmail,
+          name: null,
+          status: 'BANNED',
+          termsAcceptedAt: null,
+          emailVerifiedAt: null,
+          lastLoginAt: null,
+        },
+      })
+
+      // 6. Clear session cookie
+      res.clearCookie(SESSION_COOKIE_NAME, getClearCookieOptions())
+
+      res.status(200).json({
+        ok: true,
+        message: 'Account successfully deleted.',
       })
     } catch (err) {
       next(err)

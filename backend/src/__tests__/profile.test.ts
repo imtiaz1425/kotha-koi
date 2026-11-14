@@ -164,6 +164,27 @@ describe('Profile Management & Nickname Synchronization', () => {
     expect(resLong.body.error.code).toBe('VALIDATION_FAILED')
   })
 
+  it('PUT /api/profile — rejects attempts to modify realName with HTTP 400 VALIDATION_FAILED', async () => {
+    const { rawToken } = await createTestUser()
+    const cookie = `${SESSION_COOKIE_NAME}=${rawToken}`
+
+    const resWithName = await request(app)
+      .put('/api/profile')
+      .set('Cookie', cookie)
+      .send({ name: 'Hacked Name', nickname: 'CoolGuy' })
+
+    expect(resWithName.status).toBe(400)
+    expect(resWithName.body.error.code).toBe('VALIDATION_FAILED')
+
+    const resWithRealName = await request(app)
+      .put('/api/profile')
+      .set('Cookie', cookie)
+      .send({ realName: 'Another Name', nickname: 'CoolGuy' })
+
+    expect(resWithRealName.status).toBe(400)
+    expect(resWithRealName.body.error.code).toBe('VALIDATION_FAILED')
+  })
+
   it('PUT /api/profile and GET /api/profile — successfully creates and retrieves updated profile', async () => {
     const { rawToken } = await createTestUser()
     const cookie = `${SESSION_COOKIE_NAME}=${rawToken}`

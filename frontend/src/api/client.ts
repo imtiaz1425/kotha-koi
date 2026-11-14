@@ -157,8 +157,24 @@ export class ApiClient {
     })
   }
 
-  delete<T>(path: string, options?: RequestOptions): Promise<T> {
-    return this.request<T>(path, { ...options, method: 'DELETE' })
+  delete<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    const headers: Record<string, string> = {}
+    let serializedBody: string | undefined
+
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json'
+      serializedBody = JSON.stringify(body)
+    }
+
+    return this.request<T>(path, {
+      ...options,
+      method: 'DELETE',
+      headers: {
+        ...headers,
+        ...options?.headers,
+      },
+      body: serializedBody,
+    })
   }
 }
 

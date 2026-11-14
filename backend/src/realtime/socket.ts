@@ -1861,3 +1861,71 @@ export function clearActiveSockets(): void {
   disconnectGracePeriodMs = 15000
   MatchingService.setDisconnectCooldownDurationMs(10000)
 }
+
+/**
+ * Programmatically terminates an active chat session (e.g. from an HTTP report or block endpoint).
+ * Emits chat:ended to both participants, cleans up active socket rooms and maps, and ends match in DB.
+ */
+export async function terminateChatSession(
+  sessionId: string,
+  endedByUserId: string,
+  reason: 'SKIP' | 'END' | 'DISCONNECT_TIMEOUT' | 'MODERATION' | 'SERVER_RESTART' = 'END'
+): Promise<void> {
+  const match = MatchingService.getActiveMatch(sessionId)
+  const pendingTimer = chatDisconnectTimers.get(sessionId)
+  if (pendingTimer) {
+    clearTimeout(pendingTimer)
+    chatDisconnectTimers.delete(sessionId)
+  }
+  sessionRtcStates.delete(sessionId)
+  earlyIceCandidateBuffer.delete(sessionId)
+
+  const endedMatch = await MatchingService.endMatch(sessionId, reason, endedByUserId)
+
+  if (ioInstance && (match || endedMatch)) {
+    const participantIds = match
+      ? [match.userA.userId, match.userB.userId]
+      : endedMatch
+        ? [endedMatch.userA.userId, endedMatch.userB.userId]
+        : []
+
+    for (const uid of participantIds) {
+      const activeSockId = getActiveSocketIdForUser(uid)
+      if (activeSockId) {
+        const sock = ioInstance.sockets.sockets.get(activeSockId)
+        if (sock) {
+          socketActiveSessions.delete(sock.id)
+          sock.leave(`chat:${sessionId}`)
+          sock.emit('chat:ended', {
+            sessionId,
+            reason: uid === endedByUserId ? 'you_ended' : 'partner_left',
+            cooldownSeconds: 0,
+          })
+          sock.emit('session:state', { state: 'IDLE' })
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Disconnects all active sockets for a specific user (e.g. on ban, suspension, or account deletion).
+ */
+export function disconnectUserSockets(userId: string, reasonMessage?: string): void {
+  const sockets = userSockets.get(userId)
+  if (!sockets || !ioInstance) return
+
+  for (const socketId of Array.from(sockets)) {
+    const sock = ioInstance.sockets.sockets.get(socketId)
+    if (sock) {
+      if (reasonMessage) {
+        sock.emit('error', {
+          code: 'ACCOUNT_UNAVAILABLE',
+          message: reasonMessage,
+        })
+      }
+      sock.disconnect(true)
+    }
+  }
+}
+

@@ -9,6 +9,9 @@ import healthRouter from './routes/health'
 import authRouter from './routes/auth'
 import profileRouter from './routes/profile'
 import webrtcRouter from './routes/webrtc'
+import reportsRouter from './routes/reports'
+import blocksRouter from './routes/blocks'
+import adminRouter from './routes/admin'
 
 const app = express()
 
@@ -37,6 +40,9 @@ app.use('/api', healthRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/profile', profileRouter)
 app.use('/api/webrtc', webrtcRouter)
+app.use('/api/reports', reportsRouter)
+app.use('/api/blocks', blocksRouter)
+app.use('/api/admin', adminRouter)
 
 // ---------- 404 & Centralized Error Handling ----------
 app.use(notFoundHandler)

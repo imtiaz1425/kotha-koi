@@ -9,6 +9,9 @@ import { apiClient } from '../api/client'
 import { getSocket } from '../api/socket'
 import { OnlineBadge } from '../components/OnlineBadge'
 import { FloatingChatWindow } from '../components/FloatingChatWindow'
+import { ReportModal } from '../components/ReportModal'
+import { BlockModal } from '../components/BlockModal'
+import { ProfileDropdown } from '../components/ProfileDropdown'
 import { useWebRTC } from '../hooks/useWebRTC'
 import type { RtcRole } from '@kothakoi/shared'
 
@@ -144,6 +147,12 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [blockModalOpen, setBlockModalOpen] = useState(false)
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false)
+  const [isSubmittingBlock, setIsSubmittingBlock] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
+  const [blockError, setBlockError] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [rtcRole, setRtcRole] = useState<RtcRole | null>(null)
 
@@ -265,10 +274,12 @@ export default function Chat() {
   useEffect(() => {
     if (!userNickname) {
       apiClient
-        .get<{ ok: boolean; profile?: { nickname?: string } }>('/profile')
+        .get<{ ok: boolean; nickname?: string; profile?: { nickname?: string } }>('/profile')
         .then((res) => {
-          if (res?.profile?.nickname) {
-            setUserNickname(res.profile.nickname)
+          const fetchedNickname = res?.nickname || res?.profile?.nickname
+          if (fetchedNickname) {
+            setUserNickname(fetchedNickname)
+            userNicknameRef.current = fetchedNickname
           }
         })
         .catch(() => {})
@@ -981,16 +992,41 @@ export default function Chat() {
     }
   }
 
-  function handleReport(reason: string) {
-    alert(`Report recorded: "${reason}". Review initiated for this peer.`)
-    setReportOpen(false)
-    handleNext()
-  }
-
-  function handleBlock() {
-    if (window.confirm('Block this peer? You will not be matched again.')) {
+  async function handleReportSubmit(reason: string, details?: string) {
+    try {
+      setIsSubmittingReport(true)
+      setReportError(null)
+      await apiClient.post('/reports', {
+        sessionId: sessionIdRef.current || sessionId || undefined,
+        reason,
+        details,
+      })
+      setReportModalOpen(false)
       setReportOpen(false)
       handleNext()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to submit report.'
+      setReportError(msg)
+    } finally {
+      setIsSubmittingReport(false)
+    }
+  }
+
+  async function handleBlockConfirm() {
+    try {
+      setIsSubmittingBlock(true)
+      setBlockError(null)
+      await apiClient.post('/blocks', {
+        sessionId: sessionIdRef.current || sessionId || undefined,
+      })
+      setBlockModalOpen(false)
+      setReportOpen(false)
+      handleNext()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to block student.'
+      setBlockError(msg)
+    } finally {
+      setIsSubmittingBlock(false)
     }
   }
 
@@ -1069,11 +1105,14 @@ export default function Chat() {
                 Home
               </Link>
             </nav>
-            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center border border-on-surface shadow-[1px_1px_0px_#1c1b1b] shrink-0">
-              <span className="material-symbols-outlined text-on-primary text-[16px]">
-                person
-              </span>
-            </div>
+            <ProfileDropdown
+              buttonId="chat-profile-btn"
+              buttonClassName="w-7 h-7 rounded-full bg-primary flex items-center justify-center border border-on-surface shadow-[1px_1px_0px_#1c1b1b] shrink-0 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer"
+              onNicknameUpdated={(newNick) => {
+                setUserNickname(newNick)
+                userNicknameRef.current = newNick
+              }}
+            />
           </div>
         </div>
       </header>
@@ -1772,27 +1811,23 @@ export default function Chat() {
             >
               <button
                 type="button"
-                onClick={() => handleReport('Inappropriate Talk')}
+                onClick={() => {
+                  setReportOpen(false)
+                  setReportModalOpen(true)
+                }}
                 className="w-full text-left px-3 py-1.5 font-label-sm text-xs text-on-surface hover:bg-surface-container flex items-center gap-2"
               >
                 <span className="material-symbols-outlined text-[16px] text-error">
                   flag
                 </span>
-                Inappropriate Talk
+                Report Partner
               </button>
               <button
                 type="button"
-                onClick={() => handleReport('Inappropriate Video')}
-                className="w-full text-left px-3 py-1.5 font-label-sm text-xs text-on-surface hover:bg-surface-container flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-[16px] text-error">
-                  videocam_off
-                </span>
-                Inappropriate Video
-              </button>
-              <button
-                type="button"
-                onClick={handleBlock}
+                onClick={() => {
+                  setReportOpen(false)
+                  setBlockModalOpen(true)
+                }}
                 className="w-full text-left px-3 py-1.5 font-label-sm text-xs text-on-surface hover:bg-surface-container flex items-center gap-2 border-t border-on-surface/20"
               >
                 <span className="material-symbols-outlined text-[16px]">
@@ -1886,6 +1921,29 @@ export default function Chat() {
           </button>
         </div>
       )}
+
+      {/* ── Modals: Report and Block ────────────────────────────────────────── */}
+      <ReportModal
+        isOpen={reportModalOpen}
+        onClose={() => {
+          setReportModalOpen(false)
+          setReportError(null)
+        }}
+        onSubmit={handleReportSubmit}
+        isSubmitting={isSubmittingReport}
+        error={reportError}
+      />
+
+      <BlockModal
+        isOpen={blockModalOpen}
+        onClose={() => {
+          setBlockModalOpen(false)
+          setBlockError(null)
+        }}
+        onConfirm={handleBlockConfirm}
+        isSubmitting={isSubmittingBlock}
+        error={blockError}
+      />
     </div>
   )
 }

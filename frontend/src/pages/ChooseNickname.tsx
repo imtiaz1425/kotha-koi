@@ -9,6 +9,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { apiClient, ApiClientError } from '../api/client'
 import { useAuth } from '../context/auth-context'
 import { OnlineBadge } from '../components/OnlineBadge'
+import { ProfileDropdown } from '../components/ProfileDropdown'
 
 interface NicknameOption {
   name: string
@@ -89,12 +90,6 @@ export default function ChooseNickname() {
   const [isShuffling, setIsShuffling] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
-
-  const userInitials = user?.name
-    ? user.name.slice(0, 2).toUpperCase()
-    : user?.email
-      ? user.email.slice(0, 2).toUpperCase()
-      : 'UIU'
 
   const activeOption = NICKNAMES[selectedIndex]
   const activeNickname = isCustom
@@ -193,15 +188,14 @@ export default function ChooseNickname() {
 
           {/* Quick Profile Nav */}
           <div className="flex items-center gap-3">
-            <Link
-              to="/profile"
-              className="flex items-center gap-1.5 font-label-sm text-xs font-bold text-on-surface hover:text-primary transition-colors"
-            >
-              <div className="w-6 h-6 rounded-full bg-secondary-container border border-on-surface flex items-center justify-center text-[11px] font-bold">
-                {userInitials}
-              </div>
-              <span className="hidden sm:inline">My Profile</span>
-            </Link>
+            <ProfileDropdown
+              buttonId="nickname-profile-btn"
+              buttonClassName="w-8 h-8 rounded-full bg-primary flex items-center justify-center border border-on-surface shadow-[1px_1px_0px_#1c1b1b] shrink-0 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer"
+              onNicknameUpdated={(newNick) => {
+                setCustomName(newNick)
+                setIsCustom(true)
+              }}
+            />
           </div>
         </div>
       </header>

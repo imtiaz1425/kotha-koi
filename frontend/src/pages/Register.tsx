@@ -180,6 +180,12 @@ export default function Register() {
       return
     }
 
+    const cleanName = name.trim()
+    if (!cleanName || cleanName.length < 2) {
+      setErrorMessage('Please enter your Real Name (at least 2 characters).')
+      return
+    }
+
     setIsSaving(true)
     try {
       const res = await apiClient.post<{ ok: boolean; message: string }>(
@@ -187,7 +193,7 @@ export default function Register() {
         {
           email: email.trim().toLowerCase(),
           password,
-          name: name.trim() || undefined,
+          name: cleanName,
         }
       )
 
@@ -525,6 +531,7 @@ export default function Register() {
                       <input
                         id="regName"
                         type="text"
+                        required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. Tanvir Ahmed (Visible only to you)"

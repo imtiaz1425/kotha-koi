@@ -833,7 +833,7 @@ export class MatchingService {
    */
   static async endMatch(
     sessionId: string,
-    reason: 'SKIP' | 'END' | 'DISCONNECT_TIMEOUT' = 'END',
+    reason: 'SKIP' | 'END' | 'DISCONNECT_TIMEOUT' | 'MODERATION' | 'SERVER_RESTART' = 'END',
     endedByUserId?: string
   ): Promise<ActiveMatch | undefined> {
     const match = this.activeMatches.get(sessionId)
@@ -847,9 +847,9 @@ export class MatchingService {
     this.userStates.set(match.userB.userId, 'IDLE')
 
     // Apply disconnect cooldown (deduplicated by sessionId)
-    // If reason is SKIP, the skipped partner gets cooldown while skipper re-queues
+    // If reason is SKIP or MODERATION, the initiator gets no cooldown while partner gets cooldown
     // If reason is END or DISCONNECT_TIMEOUT, both participants get cooldown
-    if (reason === 'SKIP' && endedByUserId) {
+    if ((reason === 'SKIP' || reason === 'MODERATION') && endedByUserId) {
       const partnerUserId =
         match.userA.userId === endedByUserId
           ? match.userB.userId

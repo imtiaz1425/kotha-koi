@@ -4,33 +4,13 @@
  * Preserves the retro neo-brutalist orange/cream/pixel-tea aesthetic
  * and fits approximately within one screen on desktop.
  */
-import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context'
 import { OnlineBadge } from '../components/OnlineBadge'
+import { ProfileDropdown } from '../components/ProfileDropdown'
 
 export default function Home() {
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const { user, isAuthenticated, logout } = useAuth()
-
-  // Close profile menu on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setProfileMenuOpen(false)
-      }
-    }
-    if (profileMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [profileMenuOpen])
-
-  async function handleLogout() {
-    setProfileMenuOpen(false)
-    await logout()
-  }
+  const { user, isAuthenticated } = useAuth()
 
   return (
     <div className="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between overflow-x-hidden">
@@ -72,12 +52,12 @@ export default function Home() {
               >
                 How it works
               </a>
-              <a
+              <Link
                 className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors hidden sm:inline-block"
-                href="#guidelines"
+                to="/community-guidelines"
               >
                 Campus Guidelines
-              </a>
+              </Link>
               {isAuthenticated ? (
                 <Link
                   className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors font-bold"
@@ -101,120 +81,17 @@ export default function Home() {
                   </Link>
                 </div>
               )}
+              <Link
+                to="/admin/login"
+                className="font-label-sm text-[10px] sm:text-[11px] text-on-surface-variant/70 hover:text-on-surface transition-colors border border-on-surface/20 hover:border-on-surface/50 rounded px-1.5 py-0.5 ml-1"
+                title="Administrator Login"
+              >
+                Admin Login
+              </Link>
             </nav>
 
             {/* Profile Dropdown Container */}
-            <div className="relative" ref={menuRef}>
-              <button
-                id="profile-menu-btn"
-                type="button"
-                aria-label="User Profile Menu"
-                aria-expanded={profileMenuOpen}
-                onClick={() => setProfileMenuOpen((prev) => !prev)}
-                className="w-8 h-8 rounded-full bg-primary flex items-center justify-center border border-on-surface shadow-[1px_1px_0px_#1c1b1b] shrink-0 hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer"
-                title="Profile & Account Menu"
-              >
-                <span className="material-symbols-outlined text-on-primary text-[18px]">
-                  person
-                </span>
-              </button>
-
-              {/* Profile Dropdown Menu */}
-              {profileMenuOpen && (
-                <div
-                  id="profile-dropdown-menu"
-                  className="absolute right-0 top-full mt-2 w-56 sm:w-60 bg-surface-container-lowest rounded-xl border-2 border-on-surface shadow-[4px_4px_0px_#1c1b1b] py-1.5 z-50 animate-in fade-in duration-100"
-                >
-                  {/* Account Header Info */}
-                  <div className="px-3 py-2 border-b border-on-surface/20 bg-[#FFF5E6]/60">
-                    <span className="font-headline-md text-xs font-bold text-on-surface block">
-                      {isAuthenticated ? 'UIU Student Pass' : 'Guest Account'}
-                    </span>
-                    <span className="font-label-sm text-[10px] text-on-surface-variant block truncate">
-                      {isAuthenticated && user
-                        ? user.email
-                        : 'Not logged in • UIU Only'}
-                    </span>
-                  </div>
-
-                  <div className="py-1">
-                    {isAuthenticated ? (
-                      <>
-                        {/* My Profile */}
-                        <Link
-                          to="/profile"
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center gap-2 transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[16px] text-primary">
-                            account_circle
-                          </span>
-                          <span className="font-bold">My Profile</span>
-                        </Link>
-
-                        {/* Account / Verification Status */}
-                        <Link
-                          to="/profile"
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center justify-between gap-2 transition-colors border-t border-on-surface/10"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[16px] text-emerald-700">
-                              verified
-                            </span>
-                            <span>Account / Status</span>
-                          </div>
-                          <span className="font-label-sm text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-600 font-bold">
-                            {user?.status === 'active'
-                              ? 'Verified'
-                              : user?.status}
-                          </span>
-                        </Link>
-
-                        {/* Log Out */}
-                        <button
-                          type="button"
-                          onClick={handleLogout}
-                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-error hover:bg-error-container/40 flex items-center gap-2 transition-colors border-t border-on-surface/10 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">
-                            logout
-                          </span>
-                          <span className="font-bold">Log Out</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {/* Log In Link */}
-                        <Link
-                          to="/login"
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center gap-2 transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[16px] text-primary">
-                            login
-                          </span>
-                          <span className="font-bold">
-                            Sign In with UIU Email
-                          </span>
-                        </Link>
-                        {/* Register Link */}
-                        <Link
-                          to="/register"
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="w-full px-3 py-2 text-left font-label-sm text-xs text-on-surface hover:bg-[#FFF5E6] flex items-center gap-2 transition-colors border-t border-on-surface/10"
-                        >
-                          <span className="material-symbols-outlined text-[16px] text-primary">
-                            how_to_reg
-                          </span>
-                          <span className="font-bold">Create Account</span>
-                        </Link>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <ProfileDropdown buttonId="profile-menu-btn" />
           </div>
         </div>
       </header>
@@ -401,24 +278,30 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-space-md lg:gap-gutter-desktop flex-wrap justify-center">
-            <a
+            <Link
               className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline decoration-1 underline-offset-2"
-              href="#safety"
+              to="/safety-tips"
             >
-              Safety
-            </a>
-            <a
+              Safety Tips
+            </Link>
+            <Link
               className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline decoration-1 underline-offset-2"
-              href="#standards"
+              to="/community-guidelines"
             >
               Community Standards
-            </a>
-            <a
-              className="font-label-sm text-label-sm text-on-surface-variant hover:text-error transition-colors underline decoration-1 underline-offset-2"
-              href="#report"
+            </Link>
+            <Link
+              className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline decoration-1 underline-offset-2"
+              to="/terms"
             >
-              Report
-            </a>
+              Terms of Service
+            </Link>
+            <Link
+              className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors underline decoration-1 underline-offset-2"
+              to="/privacy"
+            >
+              Privacy Policy
+            </Link>
           </div>
         </div>
       </footer>

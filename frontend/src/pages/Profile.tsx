@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context'
 import { apiClient, ApiClientError } from '../api/client'
 import { OnlineBadge } from '../components/OnlineBadge'
+import { SHUFFLE_NICKNAMES } from '../components/ProfileDropdown'
 
 interface ProfileData {
   name: string
@@ -24,21 +25,17 @@ interface ProfileData {
 }
 
 export default function Profile() {
-  const { user, logout, checkAuth } = useAuth()
+  const { user, logout } = useAuth()
 
-  // Profile data from backend
-  const [profileData, setProfileData] = useState<ProfileData>({
-    name: user?.name || '',
-    nickname: '',
-    avatarPreset: 'mango',
-    preferences: {},
-  })
-
-  // Private profile name editing state
+  // Private profile name (immutable)
   const [privateName, setPrivateName] = useState(user?.name || '')
-  const [isEditingName, setIsEditingName] = useState(false)
-  const [isSavingName, setIsSavingName] = useState(false)
-  const [nameError, setNameError] = useState('')
+
+  // Display name (chat persona) state
+  const [displayNameInput, setDisplayNameInput] = useState('')
+  const [isSavingDisplayName, setIsSavingDisplayName] = useState(false)
+  const [displayNameSuccess, setDisplayNameSuccess] = useState('')
+  const [displayNameError, setDisplayNameError] = useState('')
+  const [isShuffling, setIsShuffling] = useState(false)
 
   // Preference toggles
   const [autoShuffleNickname, setAutoShuffleNickname] = useState(false)
@@ -58,6 +55,12 @@ export default function Profile() {
   const [passwordSuccess, setPasswordSuccess] = useState('')
   const [isChangingPassword, setIsChangingPassword] = useState(false)
 
+  // Account deletion state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+
   // Derived user details
   const email = user?.email || ''
   const studentId = email ? email.split('@')[0] : 'N/A'
@@ -73,69 +76,94 @@ export default function Profile() {
   // Fetch real profile from backend
   useEffect(() => {
     apiClient
-      .get<{ ok: boolean; profile: ProfileData }>('/profile')
+      .get<{
+        ok: boolean
+        name?: string
+        nickname?: string
+        avatarPreset?: string
+        preferences?: ProfileData['preferences']
+        profile?: ProfileData
+      }>('/profile')
       .then((res) => {
-        if (res?.profile) {
-          setProfileData(res.profile)
-          if (res.profile.name) {
-            setPrivateName(res.profile.name)
-          } else if (user?.name) {
-            setPrivateName(user.name)
-          }
-          if (res.profile.preferences) {
-            const prefs = res.profile.preferences
-            if (typeof prefs.autoShuffleNickname === 'boolean') {
-              setAutoShuffleNickname(prefs.autoShuffleNickname)
-            }
-            if (typeof prefs.defaultMuted === 'boolean') {
-              setDefaultMuted(prefs.defaultMuted)
-            }
-            if (typeof prefs.defaultCamOff === 'boolean') {
-              setDefaultCamOff(prefs.defaultCamOff)
-            }
-            if (typeof prefs.allowRepeatMatches === 'boolean') {
-              setAllowRepeatMatches(prefs.allowRepeatMatches)
-            }
-          }
+        const fetchedName = res.name || res.profile?.name || user?.name || ''
+        const fetchedNickname = res.nickname || res.profile?.nickname || ''
+        const fetchedPrefs = res.preferences || res.profile?.preferences || {}
+
+        if (fetchedName) {
+          setPrivateName(fetchedName)
+        }
+        if (fetchedNickname) {
+          setDisplayNameInput(fetchedNickname)
+        }
+
+        if (typeof fetchedPrefs.autoShuffleNickname === 'boolean') {
+          setAutoShuffleNickname(fetchedPrefs.autoShuffleNickname)
+        }
+        if (typeof fetchedPrefs.defaultMuted === 'boolean') {
+          setDefaultMuted(fetchedPrefs.defaultMuted)
+        }
+        if (typeof fetchedPrefs.defaultCamOff === 'boolean') {
+          setDefaultCamOff(fetchedPrefs.defaultCamOff)
+        }
+        if (typeof fetchedPrefs.allowRepeatMatches === 'boolean') {
+          setAllowRepeatMatches(fetchedPrefs.allowRepeatMatches)
         }
       })
       .catch(() => {})
   }, [user?.name])
 
-  async function handleSavePrivateName(e: React.FormEvent) {
+  function handleShuffleNickname() {
+    setIsShuffling(true)
+    setDisplayNameError('')
+    setDisplayNameSuccess('')
+
+    const currentVal = displayNameInput.trim()
+    const pool = SHUFFLE_NICKNAMES.filter((n) => n.toLowerCase() !== currentVal.toLowerCase())
+    const randomIndex = Math.floor(Math.random() * pool.length)
+    const picked = pool[randomIndex] || 'SleepyDeveloper'
+
+    setTimeout(() => {
+      setDisplayNameInput(picked)
+      setIsShuffling(false)
+    }, 150)
+  }
+
+  async function handleSaveDisplayName(e: React.FormEvent) {
     e.preventDefault()
-    setNameError('')
-    const trimmed = privateName.trim()
+    setDisplayNameError('')
+    setDisplayNameSuccess('')
+    const trimmed = displayNameInput.trim()
+
     if (!trimmed) {
-      setNameError('Private Profile Name cannot be empty.')
+      setDisplayNameError('Display name is required.')
       return
     }
-    if (trimmed.length > 60) {
-      setNameError('Name must be 60 characters or fewer.')
+    if (trimmed.length < 2 || trimmed.length > 20) {
+      setDisplayNameError('Display name must be between 2 and 20 characters.')
+      return
+    }
+    if (/[<>{}\\]/.test(trimmed)) {
+      setDisplayNameError('Display name contains invalid characters.')
       return
     }
 
-    setIsSavingName(true)
+    setIsSavingDisplayName(true)
     try {
-      const res = await apiClient.put<{ ok: boolean; name: string }>(
-        '/profile',
-        {
-          name: trimmed,
-        }
-      )
+      const res = await apiClient.put<{ ok: boolean; nickname: string }>('/profile', {
+        nickname: trimmed,
+      })
       if (res?.ok) {
-        setProfileData((prev) => ({ ...prev, name: res.name || trimmed }))
-        setIsEditingName(false)
-        await checkAuth()
+        setDisplayNameSuccess('Display name saved! Chat partners will now see this name.')
+        setTimeout(() => setDisplayNameSuccess(''), 4000)
       }
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setNameError(err.message)
+        setDisplayNameError(err.message)
       } else {
-        setNameError('Failed to update Profile Name. Please try again.')
+        setDisplayNameError('Failed to save display name. Please try again.')
       }
     } finally {
-      setIsSavingName(false)
+      setIsSavingDisplayName(false)
     }
   }
 
@@ -217,6 +245,31 @@ export default function Profile() {
 
   async function handleLogout() {
     await logout()
+  }
+
+  async function handleDeleteAccount(e: React.FormEvent) {
+    e.preventDefault()
+    setDeleteError('')
+    if (deleteConfirmationInput.trim() !== 'DELETE') {
+      setDeleteError('Please type DELETE in capital letters to confirm.')
+      return
+    }
+
+    setIsDeletingAccount(true)
+    try {
+      await apiClient.delete('/profile', { confirmation: 'DELETE' })
+      setShowDeleteModal(false)
+      await logout()
+      window.location.href = '/'
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError) {
+        setDeleteError(err.message)
+      } else {
+        setDeleteError('Failed to delete account. Please try again.')
+      }
+    } finally {
+      setIsDeletingAccount(false)
+    }
   }
 
   const userInitials =
@@ -331,80 +384,38 @@ export default function Profile() {
 
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                {isEditingName ? (
-                  <form
-                    onSubmit={handleSavePrivateName}
-                    className="flex items-center gap-2 mt-1"
-                  >
-                    <input
-                      type="text"
-                      value={privateName}
-                      onChange={(e) => setPrivateName(e.target.value)}
-                      maxLength={60}
-                      autoFocus
-                      placeholder="Enter private profile name"
-                      className="px-2.5 py-1 bg-surface text-on-surface font-headline-md text-lg font-bold rounded-lg border-2 border-on-surface focus:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isSavingName}
-                      className="px-2.5 py-1 bg-primary-container text-xs font-bold rounded-lg border border-on-surface shadow-[1px_1px_0px_#1c1b1b]"
-                    >
-                      {isSavingName ? 'Saving...' : 'Save'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsEditingName(false)
-                        setPrivateName(profileData.name || user?.name || '')
-                        setNameError('')
-                      }}
-                      className="px-2 py-1 bg-surface-container text-xs font-bold rounded-lg border border-on-surface"
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                ) : (
-                  <>
-                    <h1 className="font-headline-md text-2xl sm:text-3xl font-bold text-on-surface">
-                      {privateName || user?.name || 'UIU Student'}
-                    </h1>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingName(true)}
-                      className="p-1 text-on-surface-variant hover:text-primary transition-colors"
-                      title="Edit Private Profile Name"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">
-                        edit
-                      </span>
-                    </button>
-                  </>
-                )}
+                <h1 className="font-headline-md text-2xl sm:text-3xl font-bold text-on-surface">
+                  {privateName || user?.name || 'Not Set'}
+                </h1>
                 <span className="font-label-sm text-[10px] px-2 py-0.5 bg-surface-container border border-on-surface/40 rounded text-on-surface-variant font-bold">
                   🔒 Private Profile Name (Confidential)
                 </span>
               </div>
 
-              {nameError && (
-                <p className="font-body-sm text-xs text-error mt-1">
-                  {nameError}
-                </p>
-              )}
+              <div className="mt-3 p-3 bg-surface rounded-xl border border-on-surface/40 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px] text-outline">
+                    mail
+                  </span>
+                  <div>
+                    <span className="font-label-sm text-[10px] uppercase text-outline block">
+                      Registered Email (Institutional Webmail)
+                    </span>
+                    <span className="font-mono text-xs sm:text-sm font-bold text-on-surface">
+                      {email}
+                    </span>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-surface-container text-on-surface-variant border border-on-surface/30 shrink-0">
+                  <span className="material-symbols-outlined text-[12px]">lock</span>
+                  Read-Only
+                </span>
+              </div>
 
-              <p className="font-label-sm text-xs sm:text-sm text-primary font-bold mt-1">
+              <p className="font-label-sm text-xs sm:text-sm text-primary font-bold mt-2">
                 Student ID:{' '}
                 <span className="font-mono text-on-surface">{studentId}</span> •{' '}
                 {departmentName}
-              </p>
-              <p className="font-body-sm text-xs text-on-surface-variant mt-0.5 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px] text-outline">
-                  mail
-                </span>
-                <span className="font-mono">{email}</span>
-                <span className="text-[10px] text-emerald-700 font-bold ml-1">
-                  (UIU Institutional Webmail)
-                </span>
               </p>
             </div>
           </div>
@@ -439,7 +450,7 @@ export default function Profile() {
         </div>
 
         {/* ── Section 2: Dedicated Current Chat Nickname Section ──── */}
-        <div className="bg-surface-container-lowest rounded-2xl border-2 border-on-surface shadow-[5px_5px_0px_#1c1b1b] p-5 sm:p-7 space-y-3">
+        <div className="bg-surface-container-lowest rounded-2xl border-2 border-on-surface shadow-[5px_5px_0px_#1c1b1b] p-5 sm:p-7 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-on-surface/20 pb-3">
             <div>
               <div className="flex items-center gap-2">
@@ -451,43 +462,88 @@ export default function Profile() {
                 </span>
               </div>
               <p className="font-body-sm text-xs text-on-surface-variant">
-                The public nickname displayed to chat partners during real-time
-                matching. Completely separated from your private Profile Name.
+                The public alias displayed to peers during matchmaking and active chat.
+                Completely separated from your private Profile Name and registered email.
               </p>
             </div>
-            <Link
-              to="/choose-nickname"
-              className="px-3 py-1.5 bg-primary-container text-on-surface font-label-sm text-xs font-bold rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] hover:bg-[#ff8638] transition-all text-center shrink-0 flex items-center justify-center gap-1.5"
-            >
-              <span className="material-symbols-outlined text-[15px]">
-                edit
-              </span>
-              <span>Change Chat Nickname</span>
-            </Link>
-          </div>
-
-          <div className="p-4 rounded-xl bg-surface border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-secondary-container border border-on-surface flex items-center justify-center text-2xl shadow-[1px_1px_0px_#1c1b1b]">
-                🎭
-              </div>
-              <div>
-                <span className="font-label-sm text-[10px] uppercase tracking-wider text-outline block">
-                  Active Chat Alias
-                </span>
-                <span className="font-headline-md text-xl font-bold text-on-surface">
-                  {profileData.nickname || 'Anonymous UIUian (Default)'}
-                </span>
-                <p className="font-body-sm text-[11px] text-on-surface-variant mt-0.5">
-                  Visible to peer in active room. Does NOT expose your private
-                  name ({privateName || user?.name || 'Account Name'}).
-                </p>
-              </div>
-            </div>
-            <span className="font-label-sm text-xs px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-600 font-bold hidden sm:inline-block">
+            <span className="font-label-sm text-xs px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-600 font-bold self-start sm:self-auto shrink-0">
               Peer-Visible Only
             </span>
           </div>
+
+          {displayNameSuccess && (
+            <div className="p-2.5 bg-emerald-100 text-emerald-800 font-label-sm text-xs font-bold rounded-xl border border-emerald-600 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">check_circle</span>
+              <span>{displayNameSuccess}</span>
+            </div>
+          )}
+
+          {displayNameError && (
+            <div className="p-2.5 bg-error-container text-on-error-container font-label-sm text-xs font-bold rounded-xl border border-on-surface">
+              {displayNameError}
+            </div>
+          )}
+
+          <form onSubmit={handleSaveDisplayName} className="space-y-4">
+            <div className="p-4 rounded-xl bg-surface border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="font-headline-md text-xs sm:text-sm font-bold text-on-surface flex items-center gap-2">
+                  <span className="text-xl">🎭</span>
+                  <span>Active Chat Alias</span>
+                </label>
+                <span className="font-mono text-xs text-on-surface-variant">
+                  {displayNameInput.length}/20 chars
+                </span>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={displayNameInput}
+                  onChange={(e) => setDisplayNameInput(e.target.value)}
+                  maxLength={20}
+                  placeholder="e.g. SleepyDeveloper"
+                  className="w-full px-3.5 py-2.5 bg-surface-container-lowest text-on-surface font-headline-md text-base sm:text-lg font-bold rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <p className="font-body-sm text-[11px] text-on-surface-variant">
+                Visible to peers in active rooms. Does NOT expose your private
+                name ({privateName || user?.name || 'Account Name'}) or your email ({email}).
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleShuffleNickname}
+                disabled={isShuffling}
+                className="px-4 py-2 bg-secondary-container hover:bg-[#ffe087] text-on-surface font-headline-md text-xs sm:text-sm font-bold rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                title="Generate a random playful campus/developer nickname"
+              >
+                <span className={`material-symbols-outlined text-[18px] ${isShuffling ? 'animate-spin' : ''}`}>
+                  casino
+                </span>
+                <span>Shuffle Name</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/choose-nickname"
+                  className="px-3 py-2 bg-surface-container text-on-surface font-label-sm text-xs font-bold rounded-xl border border-on-surface hover:bg-surface-container-high transition-colors"
+                >
+                  Preset Avatars
+                </Link>
+                <button
+                  type="submit"
+                  disabled={isSavingDisplayName || !displayNameInput.trim()}
+                  className="px-5 py-2 bg-primary-container text-on-surface font-headline-md text-xs sm:text-sm font-bold uppercase rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] hover:bg-[#ff8638] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:opacity-60 cursor-pointer"
+                >
+                  {isSavingDisplayName ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
 
         {/* ── Section 3: Account & Session Preferences ─────────────── */}
@@ -628,7 +684,114 @@ export default function Profile() {
             </button>
           </div>
         </div>
+
+        {/* ── Section 4: Privacy Controls & Danger Zone ────────────── */}
+        <div className="bg-surface-container-lowest rounded-2xl border-2 border-error/60 shadow-[5px_5px_0px_#ba1a1a] p-5 sm:p-7 space-y-4">
+          <div className="flex items-center gap-2 border-b border-error/20 pb-3">
+            <span className="material-symbols-outlined text-error text-[22px]">
+              warning
+            </span>
+            <div>
+              <h2 className="font-headline-md text-lg sm:text-xl font-bold text-error">
+                Danger Zone &amp; Account Deletion
+              </h2>
+              <p className="font-body-sm text-xs text-on-surface-variant">
+                Permanent actions affecting your student account and personal data.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-error/5 border border-error/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-headline-md text-sm font-bold text-on-surface">
+                Delete KothaKoi Account
+              </h3>
+              <p className="font-body-sm text-xs text-on-surface-variant max-w-xl">
+                Permanently delete your profile, chat nickname, account preferences, and password credentials. Your session will be revoked immediately and data anonymized according to the privacy policy.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteError('')
+                setDeleteConfirmationInput('')
+                setShowDeleteModal(true)
+              }}
+              className="px-4 py-2 bg-error text-white font-headline-md text-xs sm:text-sm font-bold uppercase rounded-xl border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] hover:bg-error/90 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all shrink-0 self-start sm:self-auto"
+            >
+              Delete Account
+            </button>
+          </div>
+        </div>
       </main>
+
+      {/* ── Delete Account Confirmation Modal ────────────────────── */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface-container-lowest max-w-md w-full rounded-2xl border-2 border-on-surface shadow-[5px_5px_0px_#1c1b1b] p-6 relative">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute top-4 right-4 text-on-surface hover:text-error"
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                close
+              </span>
+            </button>
+
+            <div className="flex items-center gap-2 mb-3">
+              <span className="material-symbols-outlined text-error text-[24px]">
+                delete_forever
+              </span>
+              <h3 className="font-headline-md text-lg font-bold text-error">
+                Delete Account Permanently?
+              </h3>
+            </div>
+
+            <p className="text-xs text-on-surface leading-relaxed mb-3">
+              This action is <strong>irreversible</strong>. Your private profile, student ID connection, preferences, and password credentials will be deleted immediately.
+            </p>
+
+            <div className="p-3 bg-surface-container rounded-xl border border-on-surface/20 text-[11px] text-on-surface-variant mb-4">
+              To confirm, type <span className="font-mono font-bold text-on-surface">DELETE</span> below:
+            </div>
+
+            {deleteError && (
+              <div className="mb-3 p-2 bg-error-container text-on-error-container font-label-sm text-xs font-bold rounded-lg border border-on-surface">
+                {deleteError}
+              </div>
+            )}
+
+            <form onSubmit={handleDeleteAccount} className="space-y-4">
+              <input
+                type="text"
+                required
+                value={deleteConfirmationInput}
+                onChange={(e) => setDeleteConfirmationInput(e.target.value)}
+                placeholder="Type DELETE to confirm"
+                className="w-full px-3 py-2 bg-surface text-on-surface font-mono text-sm rounded-lg border-2 border-on-surface focus:outline-none"
+              />
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-on-surface/20">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeletingAccount}
+                  className="px-3.5 py-1.5 bg-surface-container text-xs font-bold rounded-lg border border-on-surface"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDeletingAccount || deleteConfirmationInput.trim() !== 'DELETE'}
+                  className="px-4 py-1.5 bg-error text-white text-xs font-bold rounded-lg border-2 border-on-surface shadow-[2px_2px_0px_#1c1b1b] disabled:opacity-40"
+                >
+                  {isDeletingAccount ? 'Deleting...' : 'Permanently Delete'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Real Password Change Dialog ─────────────────────────── */}
       {showPasswordModal && (

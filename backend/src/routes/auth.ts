@@ -123,11 +123,11 @@ router.post(
         },
       })
 
-      // Update private profile name if provided during registration
-      if (input.name) {
+      // Save Real Name during initial account creation (do not overwrite existing users' real names)
+      if (input.name && !user.name) {
         await prisma.user.update({
           where: { id: user.id },
-          data: { name: input.name },
+          data: { name: input.name.trim() },
         })
       }
 
@@ -273,6 +273,92 @@ router.post(
       })
 
       // Create session and set HttpOnly session cookie
+      const { rawToken } = await SessionService.createSession(user.id)
+      res.cookie(SESSION_COOKIE_NAME, rawToken, getSessionCookieOptions())
+
+      res.status(200).json({
+        ok: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name || null,
+          role: user.role.toLowerCase(),
+          status: user.status.toLowerCase(),
+          hasProfile: Boolean(user.profile),
+        },
+      })
+    } catch (err) {
+      next(err)
+    }
+  }
+)
+
+/**
+ * POST /api/auth/admin-login
+ * Authenticates an administrator with UIU email and password.
+ * Strictly verifies user.role === 'ADMIN'. Non-admins receive HTTP 403.
+ */
+router.post(
+  '/admin-login',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const input = passwordLoginSchema.parse(req.body)
+      const cleanIdentifier = input.identifier.trim().toLowerCase()
+
+      const user = cleanIdentifier.includes('@')
+        ? await prisma.user.findUnique({
+            where: { email: normalizeEmail(cleanIdentifier) || '' },
+            include: { profile: true, passwordAuth: true },
+          })
+        : await prisma.user.findFirst({
+            where: { email: { startsWith: `${cleanIdentifier}@` } },
+            include: { profile: true, passwordAuth: true },
+          })
+
+      if (!user || !user.passwordAuth) {
+        throw new AppError(
+          401,
+          'UNAUTHENTICATED',
+          'Invalid administrative credentials.'
+        )
+      }
+
+      const isValidPassword = verifyPassword(
+        input.password,
+        user.passwordAuth.passwordHash
+      )
+
+      if (!isValidPassword) {
+        throw new AppError(
+          401,
+          'UNAUTHENTICATED',
+          'Invalid administrative credentials.'
+        )
+      }
+
+      if (user.role !== 'ADMIN') {
+        throw new AppError(
+          403,
+          'FORBIDDEN',
+          'Administrative privileges required. This account is not an administrator.'
+        )
+      }
+
+      const now = new Date()
+
+      if (user.status === 'BANNED' || user.status === 'SUSPENDED') {
+        throw new AppError(
+          403,
+          'FORBIDDEN',
+          'This administrative account is suspended or banned.'
+        )
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: now },
+      })
+
       const { rawToken } = await SessionService.createSession(user.id)
       res.cookie(SESSION_COOKIE_NAME, rawToken, getSessionCookieOptions())
 
