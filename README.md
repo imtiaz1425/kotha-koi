@@ -24,22 +24,24 @@
 ## Table of Contents
 
 - [1. Project Overview & Motivation](#1-project-overview--motivation)
-- [2. Implemented Features & Status](#2-implemented-features--status)
-- [3. Technology Stack](#3-technology-stack)
-- [4. System Architecture](#4-system-architecture)
-- [5. Authentication & Identity Flow](#5-authentication--identity-flow)
-- [6. Privacy & Security Model](#6-privacy--security-model)
-- [7. Directory Structure](#7-directory-structure)
-- [8. Prerequisites](#8-prerequisites)
-- [9. Local Setup & Installation (Windows)](#9-local-setup--installation-windows)
-- [10. Database Configuration (PostgreSQL & Prisma)](#10-database-configuration-postgresql--prisma)
-- [11. Environment Variables](#11-environment-variables)
-- [12. Running the Application](#12-running-the-application)
-- [13. WebRTC & Metered TURN Configuration](#13-webrtc--metered-turn-configuration)
-- [14. Testing Across Networks](#14-testing-across-networks)
-- [15. Current Limitations](#15-current-limitations)
-- [16. Future Roadmap](#16-future-roadmap)
-- [17. Documentation Links](#17-documentation-links)
+- [2. Visual Interface & Application Showcase](#2-visual-interface--application-showcase)
+- [3. Development Approach: AI-Assisted System Engineering](#3-development-approach-ai-assisted-system-engineering)
+- [4. Implemented Features & Verification Status](#4-implemented-features--verification-status)
+- [5. Technology Stack](#5-technology-stack)
+- [6. System Architecture](#6-system-architecture)
+- [7. Authentication & Identity Flow](#7-authentication--identity-flow)
+- [8. Privacy & Security Model](#8-privacy--security-model)
+- [9. Directory Structure](#9-directory-structure)
+- [10. Prerequisites](#10-prerequisites)
+- [11. Local Setup & Installation (Windows)](#11-local-setup--installation-windows)
+- [12. Database Configuration (PostgreSQL & Prisma)](#12-database-configuration-postgresql--prisma)
+- [13. Environment Variables](#13-environment-variables)
+- [14. Running the Application](#14-running-the-application)
+- [15. WebRTC & Metered TURN Configuration](#15-webrtc--metered-turn-configuration)
+- [16. Testing Across Networks](#16-testing-across-networks)
+- [17. Current Limitations](#17-current-limitations)
+- [18. Future Roadmap](#18-future-roadmap)
+- [19. Documentation Links](#19-documentation-links)
 
 ---
 
@@ -55,7 +57,53 @@ I built KothaKoi to explore and master these technologies hands-on:
 
 ---
 
-## 2. Implemented Features & Verification Status
+## 2. Visual Interface & Application Showcase
+
+The application was interactively verified in local development. Below are actual screenshots demonstrating core functionality:
+
+### 1. Landing Page & Campus Lounge
+The landing page features the high-contrast Neo-Brutalist design language, live online student counter, and primary matchmaking call-to-action.
+
+![KothaKoi Landing Page](SS-UI/Screenshot%202026-11-14%20213626.png)  
+*Figure 1: KothaKoi Landing Page with real-time online counter and Neo-Brutalist visual identity.*
+
+### 2. Live Matchmaking & WebRTC Video Interface
+Dual-pane video calling interface showing active queue search, the user's anonymous persona (`You (Library Ghost)`), floating draggable chat overlay, and media controls.
+
+![KothaKoi Matchmaking & Video Chat](SS-UI/Screenshot%202026-11-14%20213635.png)  
+*Figure 2: Active video chat screen with matchmaking status, floating draggable chat window, and call controls.*
+
+### 3. Role-Based Admin Moderation Dashboard
+Administrators can inspect incoming student safety reports, review attached conversation snippet evidence, and moderate users (`WARN`, `SUSPEND`, `BAN`, `UNBAN`).
+
+![KothaKoi Admin Reports Queue](SS-UI/Screenshot%202026-11-14%20213456.png)  
+*Figure 3: Admin Moderation Reports queue with status filters and audit controls.*
+
+### 4. Admin Real-Time Metrics Overview
+The administrative overview dashboard provides live telemetry on total registered users, active sessions, online sockets, and safety metrics.
+
+![KothaKoi Admin Metrics Overview](SS-UI/Screenshot%202026-11-14%20213654.png)  
+*Figure 4: Admin Overview metrics monitoring system health and active sessions in real time.*
+
+---
+
+## 3. Development Approach: AI-Assisted System Engineering
+
+KothaKoi was built using an **AI-assisted system engineering methodology**. Rather than manually writing every line of code, I directed Google DeepMind's Antigravity AI assistant to implement features across the stack while maintaining full ownership over architecture, product requirements, code review, and quality assurance.
+
+### My Role as System Architect & Lead Engineer:
+- **Product & Requirements Definition:** Authored all foundational specifications upfront in [`Files/`](Files/) ([`PRD.md`](Files/PRD.md), [`TRD.md`](Files/TRD.md), [`APP-FLOW.md`](Files/APP-FLOW.md), [`BACKEND-SCHEMA.md`](Files/BACKEND-SCHEMA.md), and [`UI-UX-SPECIFICATION.md`](Files/UI-UX-SPECIFICATION.md)).
+- **Architecture & Tech Stack Decisions:** Selected TypeScript across all tiers, React 18, Node.js, Socket.IO, WebRTC, and PostgreSQL with Prisma; designed the identity separation boundary and TURN fallback topology.
+- **AI Orchestration & Prompt Engineering:** Decomposed requirements into modular development phases with precise interface contracts, error envelopes, and acceptance criteria.
+- **Code Review & Quality Control:** Conducted line-by-line review of generated code; caught and corrected architectural flaws (such as preventing Real Name mutation, restoring compact dropdown navigation, and fixing admin password generation).
+- **Testing & Verification:** Authored and verified 285 automated Vitest tests across frontend and backend; executed cross-network hardware tests (desktop Wi-Fi to mobile 4G/5G).
+
+For a comprehensive walkthrough of the human-AI development cycle, architectural decisions, and lessons learned, see the full case study:  
+👉 [**docs/AI-DEVELOPMENT-WORKFLOW.md**](docs/AI-DEVELOPMENT-WORKFLOW.md)
+
+---
+
+## 4. Implemented Features & Verification Status
 
 To ensure complete transparency, features are categorized by their real-world verification state rather than assuming automated tests prove full production readiness:
 
@@ -92,7 +140,7 @@ To ensure complete transparency, features are categorized by their real-world ve
 
 ---
 
-## 3. Technology Stack
+## 5. Technology Stack
 
 ### Frontend
 - **Framework:** React 18 with TypeScript
@@ -117,7 +165,7 @@ To ensure complete transparency, features are categorized by their real-world ve
 
 ---
 
-## 4. System Architecture
+## 6. System Architecture
 
 ```
                           +-----------------------------------+
@@ -151,7 +199,7 @@ To ensure complete transparency, features are categorized by their real-world ve
 
 ---
 
-## 5. Authentication & Identity Flow
+## 7. Authentication & Identity Flow
 
 ### Step 1: Email Domain Rule Check
 When a user submits an email to `/api/auth/request-code`, the server:
@@ -177,7 +225,7 @@ When a user submits an email to `/api/auth/request-code`, the server:
 
 ---
 
-## 6. Privacy & Security Model
+## 8. Privacy & Security Model
 
 KothaKoi is designed with privacy principles in mind, but it is important to understand what is protected and what the technical boundaries are:
 
@@ -195,7 +243,7 @@ KothaKoi is designed with privacy principles in mind, but it is important to und
 
 ---
 
-## 7. Directory Structure
+## 9. Directory Structure
 
 ```
 Kotha-Koi/
@@ -228,11 +276,13 @@ Kotha-Koi/
 │   └── src/                  # Error codes, socket event definitions, Zod schemas
 │
 ├── docs/                     # Detailed architectural and operational documentation
+│   ├── AI-DEVELOPMENT-WORKFLOW.md # AI-assisted engineering methodology case study
 │   ├── ARCHITECTURE.md       # Complete system architecture and signaling diagrams
 │   ├── DEVELOPMENT.md        # Local workflow, tests, migrations, and scripts
 │   ├── DEPLOYMENT.md         # Deployment architecture and TURN cost considerations
 │   └── ROADMAP.md            # Realistic future improvements
 │
+├── SS-UI/                    # Application UI screenshots and visual verification
 ├── docker-compose.yml        # Local PostgreSQL container definition
 ├── .env.example              # Root environment template
 └── README.md                 # This documentation
@@ -240,7 +290,7 @@ Kotha-Koi/
 
 ---
 
-## 8. Prerequisites
+## 10. Prerequisites
 
 - **Node.js:** `v18.x` or `v20.x` LTS ([Download Node.js](https://nodejs.org/))
 - **npm:** `v9.x` or higher
@@ -249,7 +299,7 @@ Kotha-Koi/
 
 ---
 
-## 9. Local Setup & Installation (Windows)
+## 11. Local Setup & Installation (Windows)
 
 Open **PowerShell** or **Command Prompt**:
 
@@ -280,7 +330,7 @@ cd ..
 
 ---
 
-## 10. Database Configuration (PostgreSQL & Prisma)
+## 12. Database Configuration (PostgreSQL & Prisma)
 
 ### Option A: Using Docker (Quickest)
 ```powershell
@@ -305,7 +355,7 @@ cd ..
 
 ---
 
-## 11. Environment Variables
+## 13. Environment Variables
 
 Create `backend/.env` from the provided example:
 ```powershell
@@ -335,7 +385,7 @@ METERED_API_KEY=your_metered_api_token
 
 ---
 
-## 12. Running the Application
+## 14. Running the Application
 
 ### 1. Start the Backend Server
 ```powershell
@@ -362,7 +412,7 @@ Follow the interactive prompt to set a secure admin password.
 
 ---
 
-## 13. WebRTC & Metered TURN Configuration
+## 15. WebRTC & Metered TURN Configuration
 
 ### Why TURN is Needed
 In WebRTC, direct peer-to-peer media transmission works when both users have direct IP connectivity or Open/Full Cone NAT. When either device is behind a **Symmetric NAT** or **Carrier-Grade NAT (CGNAT)** (standard on 4G/5G mobile connections), direct connection fails.
@@ -381,7 +431,7 @@ KothaKoi integrates with [Metered.ca](https://www.metered.ca/):
 
 ---
 
-## 14. Testing Across Networks
+## 16. Testing Across Networks
 
 To test video/audio chat between distinct devices (e.g. PC on Wi-Fi and smartphone on mobile data):
 
@@ -397,7 +447,7 @@ To test video/audio chat between distinct devices (e.g. PC on Wi-Fi and smartpho
 
 ---
 
-## 15. Current Limitations
+## 17. Current Limitations
 
 1. **In-Memory Matching Queue:** Matchmaking runs in Node.js process memory (`matching.ts`). Multi-server horizontal scaling would require Redis Pub/Sub.
 2. **Development Email Mock:** OTP codes are logged to the console; no external SMTP service is currently integrated.
@@ -407,7 +457,7 @@ To test video/audio chat between distinct devices (e.g. PC on Wi-Fi and smartpho
 
 ---
 
-## 16. Future Roadmap
+## 18. Future Roadmap
 
 - [ ] **Redis Matchmaking Engine:** Migrate in-memory FIFO queue to Redis Sorted Sets for distributed multi-instance clustering.
 - [ ] **Transactional Email Provider:** Integrate Resend or AWS SES for real email OTP delivery.
@@ -417,8 +467,9 @@ To test video/audio chat between distinct devices (e.g. PC on Wi-Fi and smartpho
 
 ---
 
-## 17. Documentation Links
+## 19. Documentation Links
 
+- [AI-Assisted Development Case Study](docs/AI-DEVELOPMENT-WORKFLOW.md)
 - [System Architecture](docs/ARCHITECTURE.md)
 - [Development & Testing Guide](docs/DEVELOPMENT.md)
 - [Deployment & Operations](docs/DEPLOYMENT.md)
