@@ -132,3 +132,4 @@ npx ts-node src/scripts/retention-cleanup.ts
 - **TypeScript:** Strict type-checking enabled. Always run `tsc -b` in frontend and backend before committing.
 - **Prettier:** Run `npm run format` across workspaces.
 - **Git Hygiene:** Never stage `.env`, credentials, or temporary debug logs.
+

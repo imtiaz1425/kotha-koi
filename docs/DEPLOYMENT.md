@@ -107,3 +107,4 @@ Under these conditions, media streams must be relayed through a TURN server.
 2. **Self-Hosted coturn:**
    - Deploy `coturn` on a dedicated Linux VPS with an unmetered high-bandwidth network interface (e.g., Hetzner, DigitalOcean, or Linode).
    - Configure TLS certificates (`turns:`) on port 443 to bypass restrictive firewalls.
+

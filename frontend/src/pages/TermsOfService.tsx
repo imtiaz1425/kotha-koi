@@ -48,7 +48,7 @@ export default function TermsOfService() {
           <section className="space-y-3">
             <h2 className="font-headline-md text-lg font-bold text-on-surface">1. Eligibility &amp; Authentication</h2>
             <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-              Access to KothaKoi is restricted to currently enrolled students with a valid UIU institutional email address (<code className="px-1 py-0.5 bg-surface-container border border-on-surface/30 rounded text-[11px]">@uiu.ac.bd</code> or <code className="px-1 py-0.5 bg-surface-container border border-on-surface/30 rounded text-[11px]">@*.uiu.ac.bd</code>). You agree not to share, transfer, or allow others to use your institutional login codes or session cookies.
+              Registration on KothaKoi requires a UIU email address (such as <code className="px-1 py-0.5 bg-surface-container border border-on-surface/30 rounded text-[11px]">@uiu.ac.bd</code> or <code className="px-1 py-0.5 bg-surface-container border border-on-surface/30 rounded text-[11px]">@bscse.uiu.ac.bd</code>) as an application-level eligibility rule. KothaKoi is an independent student portfolio project and is not affiliated with, operated by, or endorsed by United International University.
             </p>
           </section>
 

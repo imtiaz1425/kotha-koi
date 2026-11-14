@@ -238,7 +238,7 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
               {/* Account Header Info */}
               <div className="px-3 py-2 border-b border-on-surface/20 bg-[#FFF5E6]/60">
                 <span className="font-headline-md text-xs font-bold text-on-surface block">
-                  {isAuthenticated ? 'UIU Student Pass' : 'Guest Account'}
+                  {isAuthenticated ? 'Student Account' : 'Guest Account'}
                 </span>
                 <span className="font-label-sm text-[10px] text-on-surface-variant block truncate">
                   {isAuthenticated && user
@@ -276,7 +276,7 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
                       </div>
                       <span className="font-label-sm text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-600 font-bold">
                         {user?.status === 'active'
-                          ? 'Verified'
+                          ? 'Active'
                           : user?.status || 'Active'}
                       </span>
                     </button>

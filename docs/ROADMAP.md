@@ -1,15 +1,18 @@
 # KothaKoi — Product & Engineering Roadmap
 
-This roadmap documents completed milestones, active capabilities, current limitations, and deferred engineering objectives.
+> [!NOTE]
+> **Independent Portfolio Project:** KothaKoi is an independent educational and portfolio project. It is not affiliated with or endorsed by United International University.
+
+This roadmap documents completed technical milestones, current architecture constraints, and potential future engineering objectives.
 
 ---
 
 ## Completed Milestones
 
 ### Phase 1 — Authentication & Identity Separation
-- [x] UIU email domain verification (`@uiu.ac.bd`, `@bscse.uiu.ac.bd`).
-- [x] Secure OTP verification with 10-minute expiry and attempt limit.
-- [x] Password creation with `scrypt` hashing and HttpOnly cookie sessions.
+- [x] Application-level email domain filtering (`@uiu.ac.bd`, `@bscse.uiu.ac.bd`).
+- [x] OTP code verification with 10-minute expiry and attempt limit (dev terminal logging).
+- [x] Password creation with Node.js native `crypto.scryptSync` hashing and signed HttpOnly cookie sessions.
 - [x] Separation of private Real Name (immutable, stored at registration) and public Display Name (customizable, random shuffle).
 - [x] Student ID prefix and full email login support.
 
@@ -64,3 +67,4 @@ This roadmap documents completed milestones, active capabilities, current limita
 ### Long-Term (Ecosystem Expansion)
 - [ ] **Cross-Campus Partnerships:** Expand student domain verification to other major universities in Bangladesh (e.g., BRAC, NSU, AIUB).
 - [ ] **Progressive Web App (PWA) Offline Shell:** Improved mobile caching and home-screen installability.
+

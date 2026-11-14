@@ -43,7 +43,7 @@ export default function CommunityGuidelines() {
 
           {/* Disclaimer Banner */}
           <div className="p-4 bg-secondary-container/40 rounded-xl border border-on-surface/30 text-xs text-on-surface-variant leading-relaxed">
-            <strong>Notice:</strong> KothaKoi is an independent, student-developed peer-to-peer communication platform for United International University (UIU) students. These guidelines represent product policy standards and are not legally certified documents or official UIU institutional regulations.
+            <strong>Disclaimer &amp; Project Notice:</strong> KothaKoi is an independent student-built portfolio project. It is not affiliated with, sponsored by, or endorsed by United International University (UIU). These community standards are self-defined guidelines for respectful peer interaction during project testing and demonstration.
           </div>
 
           <section className="space-y-3">

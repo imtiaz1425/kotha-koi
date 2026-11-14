@@ -42,20 +42,20 @@ export default function PrivacyPolicy() {
           </div>
 
           <div className="p-4 bg-secondary-container/40 rounded-xl border border-on-surface/30 text-xs text-on-surface-variant leading-relaxed">
-            <strong>Privacy Guarantee:</strong> KothaKoi is designed from the ground up for anonymity. Your real student email and profile name are never shown to random chat partners.
+            <strong>Project Notice &amp; Privacy Design:</strong> KothaKoi is an independent student-built portfolio and learning project. It is not affiliated with or endorsed by United International University. The application enforces identity separation so that your registered email and real name are not exposed to chat partners.
           </div>
 
           <section className="space-y-3">
             <h2 className="font-headline-md text-lg font-bold text-on-surface">1. What Information We Collect</h2>
             <ul className="list-disc pl-5 text-xs sm:text-sm text-on-surface-variant space-y-2">
               <li>
-                <strong>Account Credentials:</strong> UIU institutional email address and hashed authentication tokens/passwords. Used strictly to verify university enrollment and prevent unauthorized access.
+                <strong>Account Credentials:</strong> UIU email address and scrypt-hashed passwords. Used as an application-level registration rule to restrict access to campus community members.
               </li>
               <li>
                 <strong>User Profile:</strong> Optional private account name, temporary chat nickname, chosen avatar preset, and in-app preferences.
               </li>
               <li>
-                <strong>Safety &amp; Moderation Logs:</strong> User-submitted reports, structured violation categories, moderation audit actions, and reciprocal block lists to prevent repeat abuse.
+                <strong>Safety &amp; Moderation Logs:</strong> User-submitted reports, violation categories, recent chat snippet evidence submitted with reports, moderation audit logs, and reciprocal block lists.
               </li>
             </ul>
           </section>
@@ -64,10 +64,10 @@ export default function PrivacyPolicy() {
             <h2 className="font-headline-md text-lg font-bold text-on-surface">2. Ephemeral Chat Messages &amp; Media Handling</h2>
             <ul className="list-disc pl-5 text-xs sm:text-sm text-on-surface-variant space-y-2">
               <li>
-                <strong>Zero Chat History Storage:</strong> Real-time text messages are delivered ephemerally through Socket.IO in server memory. They are <strong>never written to our PostgreSQL database</strong> or persistent storage. Once your session ends, the messages vanish.
+                <strong>Zero Chat History Storage:</strong> Real-time text messages are routed ephemerally in server memory through Socket.IO and are not saved to a persistent database table. However, if a user submits a safety report, a brief recent snippet of the active conversation is attached to the report for moderation review.
               </li>
               <li>
-                <strong>Peer-to-Peer WebRTC Video:</strong> Audio and video streams are established directly between peer browsers whenever NAT topologies permit. When direct connection fails, encrypted media packets are relayed via Metered TURN servers. Relay servers do not record, inspect, or retain audio or video data.
+                <strong>Peer-to-Peer WebRTC Video:</strong> Audio and video streams are established directly between peer browsers using standard WebRTC with SRTP encryption. When direct P2P connection fails due to symmetric NAT, media is relayed through third-party TURN servers (Metered). Relayed media payloads remain SRTP encrypted between endpoints, while the relay provider handles network transport routing.
               </li>
             </ul>
           </section>

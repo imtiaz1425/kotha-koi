@@ -93,17 +93,24 @@ To prevent WebRTC connection failures on mobile devices without camera permissio
 
 ---
 
-## 3. Security & Identity Boundary
+## 3. Security, Privacy & System Boundaries
 
-1. **Email Domain Enclosure:**
-   Only verified `@*.uiu.ac.bd` domain emails can request verification codes.
-2. **Double-Hashed Passwords:**
-   Passwords are never stored in plaintext. Hashing is performed using `scrypt` with random cryptographic salts.
-3. **Identity Privacy:**
-   - Real Names collected at registration are immutable and visible only to the account owner via `/api/profile` and `/api/auth/me`.
-   - Socket matchmaking payloads only ever carry the chosen or generated `nickname`.
-   - Partner user IDs are obscured on the client side; reports and blocks use session tokens or server-resolved partner references.
-4. **Role-Based Access Control (RBAC):**
+> [!NOTE]
+> **Independent Project Disclaimer:** KothaKoi is an independent student portfolio project. It is not affiliated with, authorized by, or endorsed by United International University.
+
+1. **Application-Level Domain Rule:**
+   Registration requests validate that the submitted email string matches configured allowed domains (`ALLOWED_EMAIL_DOMAINS`, e.g. `uiu.ac.bd,bscse.uiu.ac.bd`). This is an application-level rule, not institutional single sign-on (SSO).
+2. **Password & OTP Cryptography:**
+   - Account passwords are encrypted using Node.js native `crypto.scryptSync` with a unique 16-byte random salt and verified with `crypto.timingSafeEqual`.
+   - 6-digit numeric login codes are hashed using HMAC-SHA256 before storage in PostgreSQL with a 10-minute time-to-live (TTL).
+3. **Identity Separation:**
+   - Real Name (immutable after registration) and registered email are stored in the database but are never broadcasted in Socket.IO matching payloads or chat events.
+   - Only the user's chosen or generated `nickname` is transmitted to the chat partner.
+4. **Transport & Data Boundaries:**
+   - Socket.IO text messages are routed ephemerally in server memory; there is no persistent chat log table.
+   - Safety reports capture a brief 10-message snippet from active memory to allow administrative review.
+   - Direct WebRTC media streams are encrypted using standard SRTP, but direct peer connections expose peer IP addresses to each other. Relayed sessions route through Metered TURN servers.
+5. **Role-Based Access Control (RBAC):**
    `/api/admin/*` routes enforce `requireAdmin` middleware, which verifies `user.role === 'ADMIN'`.
 
 ---
@@ -117,3 +124,4 @@ To prevent WebRTC connection failures on mobile devices without camera permissio
 - **BlockedUser:** Stores `blockerId` and `blockedId` with a composite unique constraint.
 - **Report:** Stores `reporterId`, `reportedId`, `category`, `reason`, `status`, and `chatSnippet`.
 - **ModerationLog:** Immutable audit record of admin moderation actions (`WARN`, `SUSPEND`, `BAN`, `UNBAN`).
+
